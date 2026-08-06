@@ -1,0 +1,96 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Settings {
+  id       String @id @default(cuid())
+  password String // Hashed admin password
+}
+
+model Semester {
+  id      String  @id @default(cuid())
+  name    String  // Ex: "2º Semestre/2026"
+  classes Class[]
+}
+
+model Subject {
+  id      String  @id @default(cuid())
+  name    String  // Ex: "Redes de Computadores"
+  classes Class[]
+}
+
+model Class {
+  id                String   @id @default(cuid())
+  semesterId        String
+  subjectId         String
+  professor         String   // Ex: "Prof. Me. DAVI MAXMILLAN"
+  calculationMethod String   @default("SUM") // "SUM" ou "AVERAGE"
+  semester          Semester @relation(fields: [semesterId], references: [id])
+  subject           Subject  @relation(fields: [subjectId], references: [id])
+  enrollments       Enrollment[]
+  activities        Activity[]
+}
+
+model Student {
+  id          String   @id @default(cuid())
+  name        String
+  rgm         String?  @unique
+  enrollments Enrollment[]
+}
+
+model Enrollment {
+  id        String   @id @default(cuid())
+  studentId String
+  classId   String
+  student   Student  @relation(fields: [studentId], references: [id])
+  class     Class    @relation(fields: [classId], references: [id])
+  grades    Grade[]
+  attendances AttendanceRecord[]
+  enrollmentDate DateTime?
+  absences  Int      @default(0) // Still keeping for manual overrides or totals if needed
+  afGrade   Float?   // Avaliação Final
+  finalAvg  Float?
+  status    String?  // APROVADO, REPROVADO, etc.
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  classId   String
+  bimester  Int      @default(1) // 1 ou 2
+  name      String   // Ex: "Atividade 1", "Prova"
+  weight    Float    // Peso da atividade (Ex: 2.0, 5.0)
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  grades    Grade[]
+  createdAt DateTime @default(now())
+}
+
+model Grade {
+  id           String   @id @default(cuid())
+  enrollmentId String
+  activityId   String
+  value        Float    // A nota bruta (ex: 10)
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  activity     Activity   @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, activityId])
+}
+
+model AttendanceRecord {
+  id           String   @id @default(cuid())
+  enrollmentId String
+  date         DateTime
+  present      Boolean  @default(true)
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, date])
+}
