@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import prisma from '@/lib/prisma'
 import { Building2 } from 'lucide-react'
 import CreateInstitutionButton from './CreateInstitutionButton'

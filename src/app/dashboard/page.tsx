@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import prisma from '@/lib/prisma'
 import { BookOpen, Users, Calendar } from 'lucide-react'
 import Link from 'next/link'
