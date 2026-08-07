@@ -2,6 +2,8 @@ import { checkHasPassword } from '@/app/actions/auth'
 import LoginForm from './LoginForm'
 import styles from './login.module.css'
 
+export const dynamic = 'force-dynamic'
+
 export default async function LoginPage() {
   const hasPassword = await checkHasPassword()
 
