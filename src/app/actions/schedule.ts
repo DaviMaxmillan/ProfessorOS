@@ -64,7 +64,7 @@ export async function generateScheduleAction(classId: string, startDateStr: stri
 
 export async function updateScheduleEntryAction(
   entryId: string, 
-  data: { content: string; notes: string; rowColor: string; driveLink: string }
+  data: { content: string; notes: string; rowColor: string | null; driveLink: string | null }
 ) {
   try {
     await prisma.scheduleEntry.update({

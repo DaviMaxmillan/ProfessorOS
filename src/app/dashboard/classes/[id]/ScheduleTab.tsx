@@ -81,7 +81,7 @@ export default function ScheduleTab({ classData }: { classData: any }) {
       content: editContent,
       notes: editNotes,
       rowColor: editColor || null,
-      driveLink: editDriveLink
+      driveLink: editDriveLink || null
     })
     
     if (res.success) {

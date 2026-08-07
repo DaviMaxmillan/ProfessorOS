@@ -167,9 +167,9 @@ function NoteCard({ note, onSave, onDelete, onTogglePin }: {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <ALargeSmall size={14} color="var(--text-secondary)" />
             <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Tamanho:</span>
-            <button onClick={() => setFontSize(f => Math.max(10, f - 2))} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontWeight: 'bold' }}>A-</button>
+            <button onClick={() => setFontSize((f: number) => Math.max(10, f - 2))} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontWeight: 'bold' }}>A-</button>
             <span style={{ color: '#fff', fontSize: '0.85rem', minWidth: '28px', textAlign: 'center' }}>{fontSize}px</span>
-            <button onClick={() => setFontSize(f => Math.min(28, f + 2))} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontWeight: 'bold' }}>A+</button>
+            <button onClick={() => setFontSize((f: number) => Math.min(28, f + 2))} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontWeight: 'bold' }}>A+</button>
           </div>
 
           {/* Label */}
@@ -329,9 +329,9 @@ export default function NotesTab({ classData }: { classData: any }) {
               {/* Font size */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Fonte:</span>
-                <button onClick={() => setNewFontSize(f => Math.max(10, f - 2))} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer' }}>A-</button>
+                <button onClick={() => setNewFontSize((f: number) => Math.max(10, f - 2))} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer' }}>A-</button>
                 <span style={{ color: '#fff', fontSize: '0.85rem', minWidth: '28px', textAlign: 'center' }}>{newFontSize}px</span>
-                <button onClick={() => setNewFontSize(f => Math.min(28, f + 2))} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer' }}>A+</button>
+                <button onClick={() => setNewFontSize((f: number) => Math.min(28, f + 2))} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer' }}>A+</button>
               </div>
 
               {/* Labels */}

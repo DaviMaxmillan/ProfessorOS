@@ -277,7 +277,9 @@ export default function GradesTab({ classData }: { classData: any }) {
                         {enrollment.student.name}
                       </span>
                       {enrollment.notes && (
-                        <StickyNote size={13} color="#f59e0b" title="Este aluno tem anotação" />
+                        <span title="Este aluno tem anotação">
+                          <StickyNote size={13} color="#f59e0b" />
+                        </span>
                       )}
                       <button
                         onClick={() => handleEditStudent(enrollment.student.id, enrollment.student.name)}

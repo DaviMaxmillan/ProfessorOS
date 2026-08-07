@@ -143,6 +143,7 @@ export async function updateClassAction(classId: string, formData: FormData) {
     const semesterName = formData.get('semesterName') as string
     const subjectName = formData.get('subjectName') as string
     const turmaName = (formData.get('turmaName') as string)?.trim() || null
+    const schedule = (formData.get('schedule') as string)?.trim() || null
 
     if (!institutionName || !semesterName || !subjectName) {
       return { success: false, message: 'Instituição, Semestre e Disciplina são obrigatórios.' }

@@ -45,7 +45,7 @@ export async function importExcelAction(formData: FormData): Promise<ImportResul
     
     const sheetName = workbook.SheetNames[0]
     const sheet = workbook.Sheets[sheetName]
-    const rawData = xlsx.utils.sheet_to_json<any[][]>(sheet, { header: 1 })
+    const rawData = xlsx.utils.sheet_to_json<any[]>(sheet, { header: 1 })
     
     if (rawData.length === 0) {
       return { success: false, message: 'Planilha vazia.' }

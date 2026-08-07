@@ -70,7 +70,7 @@ export default function ReportsPage() {
 
       <div className="glass-panel no-print" style={{ padding: '24px', marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'flex-end' }}>
         <div style={{ flex: 1 }}>
-          <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <label style={{ display: 'flex', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px', alignItems: 'center', gap: '6px' }}>
             <Filter size={14} /> Selecione uma Turma para o Relatório
           </label>
           <select 
