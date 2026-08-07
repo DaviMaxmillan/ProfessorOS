@@ -11,10 +11,14 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ id
   const classData = await prisma.class.findUnique({
     where: { id },
     include: {
+      institution: true,
       semester: true,
       subject: true,
       activities: {
         orderBy: { createdAt: 'asc' }
+      },
+      scheduleEntries: {
+        orderBy: { date: 'asc' }
       },
       enrollments: {
         include: {
@@ -26,6 +30,27 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ id
             name: 'asc'
           }
         }
+      },
+      groupWorks: {
+        include: {
+          activity: true,
+          groups: {
+            include: {
+              members: {
+                include: {
+                  enrollment: {
+                    include: {
+                      student: true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      classNotes: {
+        orderBy: [{ pinned: 'desc' }, { createdAt: 'desc' }]
       }
     }
   })

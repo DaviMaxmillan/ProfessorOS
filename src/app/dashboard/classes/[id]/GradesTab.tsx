@@ -1,13 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Save, Calculator, Settings, X, Edit2 } from 'lucide-react'
-import { createActivityAction, saveGradesAction, updateClassCalculationMethod, deleteActivityAction, updateStudentNameAction } from '@/app/actions/diary'
+import { Plus, Save, Calculator, Settings, X, Edit2, StickyNote } from 'lucide-react'
+import { createActivityAction, saveGradesAction, updateClassCalculationMethod, deleteActivityAction, updateStudentNameAction, saveEnrollmentNotesAction } from '@/app/actions/diary'
 
 export default function GradesTab({ classData }: { classData: any }) {
   const [isAddingActivity, setIsAddingActivity] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [calcMethod, setCalcMethod] = useState(classData.calculationMethod || 'SUM')
+  const [notesModal, setNotesModal] = useState<{ enrollmentId: string; studentName: string; currentNotes: string } | null>(null)
+  const [notesText, setNotesText] = useState('')
+  const [isSavingNotes, setIsSavingNotes] = useState(false)
   
   // gradesState shape: { [enrollmentId]: { [activityId]: number | null } }
   const [gradesState, setGradesState] = useState<Record<string, Record<string, number | null>>>(() => {
@@ -135,8 +138,26 @@ export default function GradesTab({ classData }: { classData: any }) {
     }
   }
 
+  const handleOpenNotes = (enrollmentId: string, studentName: string, currentNotes: string) => {
+    setNotesModal({ enrollmentId, studentName, currentNotes })
+    setNotesText(currentNotes || '')
+  }
+
+  const handleSaveNotes = async () => {
+    if (!notesModal) return
+    setIsSavingNotes(true)
+    const res = await saveEnrollmentNotesAction(notesModal.enrollmentId, notesText)
+    setIsSavingNotes(false)
+    if (res.success) {
+      setNotesModal(null)
+    } else {
+      alert(res.message)
+    }
+  }
+
   return (
-    <div className="glass-panel" style={{ padding: '24px' }}>
+    <>
+      <div className="glass-panel" style={{ padding: '24px' }}>
       
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
@@ -248,12 +269,29 @@ export default function GradesTab({ classData }: { classData: any }) {
               const isApproved = parseFloat(avgs.final) >= 6.0
 
               return (
-                <tr key={enrollment.id} style={{ borderBottom: '1px solid var(--surface-border)', background: index % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
-                  <td style={{ padding: '12px 20px', fontWeight: '500', color: 'var(--text-primary)', borderRight: '1px solid var(--surface-border)' }}>
+                <tr key={enrollment.id} style={{ borderBottom: '1px solid var(--surface-border)', background: enrollment.status === 'INATIVO' ? 'rgba(239, 68, 68, 0.07)' : enrollment.status === 'DESISTENTE' ? 'rgba(245, 158, 11, 0.07)' : (index % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)') }}>
+                  <td style={{ padding: '12px 20px', fontWeight: '500', borderRight: '1px solid var(--surface-border)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {enrollment.student.name}
-                      <button onClick={() => handleEditStudent(enrollment.student.id, enrollment.student.name)} style={{ background: 'rgba(99, 102, 241, 0.1)', border: '1px solid rgba(99, 102, 241, 0.3)', color: 'var(--accent)', cursor: 'pointer', padding: '4px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Editar Nome">
+                      {/* Destaque se tiver anotação */}
+                      <span style={{ color: enrollment.notes ? '#f59e0b' : 'var(--text-primary)', fontWeight: enrollment.notes ? '600' : '500' }}>
+                        {enrollment.student.name}
+                      </span>
+                      {enrollment.notes && (
+                        <StickyNote size={13} color="#f59e0b" title="Este aluno tem anotação" />
+                      )}
+                      <button
+                        onClick={() => handleEditStudent(enrollment.student.id, enrollment.student.name)}
+                        style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.3)', color: 'var(--accent)', cursor: 'pointer', padding: '4px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        title="Editar Nome"
+                      >
                         <Edit2 size={14} />
+                      </button>
+                      <button
+                        onClick={() => handleOpenNotes(enrollment.id, enrollment.student.name, enrollment.notes || '')}
+                        style={{ background: enrollment.notes ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${enrollment.notes ? 'rgba(245,158,11,0.4)' : 'var(--surface-border)'}`, color: enrollment.notes ? '#f59e0b' : 'var(--text-secondary)', cursor: 'pointer', padding: '4px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        title={enrollment.notes ? 'Ver/Editar Anotação' : 'Adicionar Anotação'}
+                      >
+                        <StickyNote size={14} />
                       </button>
                     </div>
                   </td>
@@ -320,5 +358,53 @@ export default function GradesTab({ classData }: { classData: any }) {
         </table>
       </div>
     </div>
+
+      {/* Modal de Anotações */}
+      {notesModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '480px', padding: '32px', animation: 'slideUp 0.3s ease' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <StickyNote size={20} color="#f59e0b" />
+                Anotação — {notesModal.studentName}
+              </h3>
+              <button onClick={() => setNotesModal(null)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                <X size={22} />
+              </button>
+            </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '12px' }}>
+              Esta anotação é privada e visível apenas para você.
+            </p>
+            <textarea
+              value={notesText}
+              onChange={(e) => setNotesText(e.target.value)}
+              placeholder="Ex: Aluno afastado — enviar atividades por e-mail. Contato: aluno@email.com"
+              rows={5}
+              style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--surface-border)', color: '#fff', fontFamily: 'inherit', fontSize: '0.95rem', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
+              autoFocus
+            />
+            <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+              <button
+                onClick={handleSaveNotes}
+                disabled={isSavingNotes}
+                className="btn-primary"
+                style={{ flex: 1, justifyContent: 'center' }}
+              >
+                {isSavingNotes ? 'Salvando...' : 'Salvar Anotação'}
+              </button>
+              {notesModal.currentNotes && (
+                <button
+                  onClick={() => setNotesText('')}
+                  style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)', color: '#ef4444', cursor: 'pointer', fontSize: '0.85rem' }}
+                  title="Limpar anotação"
+                >
+                  Limpar
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }

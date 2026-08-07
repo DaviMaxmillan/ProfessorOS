@@ -5,6 +5,7 @@ import Link from 'next/link'
 export default async function ImportPage() {
   const classes = await prisma.class.findMany({
     include: {
+      institution: true,
       semester: true,
       subject: true
     },

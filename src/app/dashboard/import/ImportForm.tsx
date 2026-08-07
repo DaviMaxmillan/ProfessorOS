@@ -6,6 +6,7 @@ import { importExcelAction, ImportResult } from '@/app/actions/import'
 
 type ClassData = {
   id: string;
+  institution: { name: string } | null;
   semester: { name: string };
   subject: { name: string };
 }
@@ -99,7 +100,7 @@ export default function ImportForm({ classes }: { classes: ClassData[] }) {
         >
           {classes.map(c => (
             <option key={c.id} value={c.id} style={{ background: '#111827' }}>
-              {c.subject.name} - {c.semester.name}
+              {c.institution?.name ? `${c.institution.name} - ` : ''}{c.subject.name} - {c.semester.name}
             </option>
           ))}
         </select>

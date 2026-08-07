@@ -118,3 +118,30 @@ export async function updateStudentNameAction(studentId: string, newName: string
     return { success: false, message: `Erro ao atualizar nome: ${error.message}` }
   }
 }
+
+export async function saveEnrollmentNotesAction(enrollmentId: string, notes: string) {
+  try {
+    await prisma.enrollment.update({
+      where: { id: enrollmentId },
+      data: { notes: notes.trim() || null }
+    })
+    revalidatePath('/dashboard/classes/[id]', 'page')
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, message: `Erro ao salvar anotação: ${error.message}` }
+  }
+}
+
+export async function updateEnrollmentStatusAction(enrollmentId: string, status: string) {
+  try {
+    await prisma.enrollment.update({
+      where: { id: enrollmentId },
+      data: { status: status || null }
+    })
+    revalidatePath('/dashboard/classes/[id]', 'page')
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, message: `Erro ao atualizar status: ${error.message}` }
+  }
+}
+

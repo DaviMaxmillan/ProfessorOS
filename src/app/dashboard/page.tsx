@@ -4,9 +4,17 @@ import Link from 'next/link'
 
 export default async function DashboardPage() {
   const [totalStudents, totalClasses, totalSemesters, recentClasses] = await Promise.all([
-    prisma.student.count(),
+    prisma.student.count({
+      where: {
+        enrollments: { some: {} }
+      }
+    }),
     prisma.class.count(),
-    prisma.semester.count(),
+    prisma.semester.count({
+      where: {
+        classes: { some: {} }
+      }
+    }),
     prisma.class.findMany({
       take: 5,
       include: {

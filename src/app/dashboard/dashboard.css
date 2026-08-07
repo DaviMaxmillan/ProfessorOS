@@ -17,6 +17,13 @@
   position: sticky;
   top: 0;
   height: 100vh;
+  transition: width 0.3s ease, padding 0.3s ease;
+  overflow: hidden;
+}
+
+.sidebar.collapsed {
+  width: 80px;
+  padding: 24px 8px;
 }
 
 .sidebar-header {
@@ -32,6 +39,11 @@
 
 .logo-text span {
   color: var(--accent);
+}
+
+.sidebar.collapsed .logo-text {
+  opacity: 0;
+  display: none;
 }
 
 .sidebar-nav {
@@ -57,6 +69,17 @@
   font-size: 0.95rem;
   cursor: pointer;
   text-align: left;
+  white-space: nowrap;
+}
+
+.sidebar.collapsed .nav-item span {
+  opacity: 0;
+  display: none;
+}
+
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 12px;
 }
 
 .nav-item:hover {
