@@ -46,6 +46,7 @@ model Class {
   calculationMethod String   @default("SUM") // "SUM" ou "AVERAGE"
   startDate         DateTime?
   endDate           DateTime?
+  order             Int      @default(0)
   daysOfWeek        String?  // JSON string como "[1, 3]" para Seg e Qua
   institution       Institution? @relation(fields: [institutionId], references: [id])
   semester          Semester @relation(fields: [semesterId], references: [id])

@@ -175,3 +175,22 @@ export async function updateClassAction(classId: string, formData: FormData) {
     return { success: false, message: `Erro ao atualizar turma: ${error.message}` }
   }
 }
+
+export async function updateClassOrderAction(orderedIds: string[]) {
+  try {
+    const transactions = orderedIds.map((id, index) => 
+      prisma.class.update({
+        where: { id },
+        data: { order: index }
+      })
+    )
+    
+    await prisma.$transaction(transactions)
+    revalidatePath('/dashboard/classes')
+    revalidatePath('/dashboard')
+    
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, message: `Erro ao reordenar: ${error.message}` }
+  }
+}

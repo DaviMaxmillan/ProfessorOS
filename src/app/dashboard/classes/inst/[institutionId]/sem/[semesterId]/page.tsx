@@ -5,19 +5,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronRight, ArrowLeft, BookOpen, Users, Clock } from 'lucide-react'
 import CreateClassForm from '../../../../CreateClassForm'
-
-function getLowestDayIndex(schedule: string | null): number {
-  if (!schedule) return 8;
-  const str = schedule.toLowerCase();
-  if (str.includes('seg')) return 1;
-  if (str.includes('ter')) return 2;
-  if (str.includes('qua')) return 3;
-  if (str.includes('qui')) return 4;
-  if (str.includes('sex')) return 5;
-  if (str.includes('sab') || str.includes('sáb')) return 6;
-  if (str.includes('dom')) return 7;
-  return 8;
-}
+import ClassSortableList from '../../../../ClassSortableList'
 
 export default async function SemesterClassesPage({
   params
@@ -47,19 +35,7 @@ export default async function SemesterClassesPage({
       subject: true,
       _count: { select: { enrollments: true } }
     },
-    orderBy: { id: 'desc' }
-  })
-
-  // Sort by day of week, then by subject name
-  classes.sort((a, b) => {
-    const dayA = getLowestDayIndex(a.schedule)
-    const dayB = getLowestDayIndex(b.schedule)
-    
-    if (dayA !== dayB) {
-      return dayA - dayB
-    }
-    
-    return a.subject.name.localeCompare(b.subject.name)
+    orderBy: { order: 'asc' }
   })
 
   return (
@@ -90,57 +66,7 @@ export default async function SemesterClassesPage({
         />
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {classes.length === 0 ? (
-          <div className="glass-panel" style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-secondary)' }}>
-            <BookOpen size={48} style={{ margin: '0 auto 16px', opacity: 0.4 }} />
-            <p style={{ marginBottom: '8px' }}>Nenhuma turma neste semestre.</p>
-            <p style={{ fontSize: '0.85rem' }}>Clique em "Nova Turma" para adicionar.</p>
-          </div>
-        ) : (
-          classes.map((c) => (
-            <Link key={c.id} href={`/dashboard/classes/${c.id}`} style={{ textDecoration: 'none' }}>
-              <div className="glass-panel class-card" style={{
-                padding: '20px 28px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{
-                    width: '44px', height: '44px', borderRadius: '10px',
-                    background: 'rgba(165, 180, 252, 0.1)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: 'var(--accent)', flexShrink: 0
-                  }}>
-                    <BookOpen size={20} />
-                  </div>
-                  <div>
-                    <h3 style={{ fontSize: '1.15rem', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                      {c.subject.name}{c.turmaName ? ` — ${c.turmaName}` : ''}
-                    </h3>
-                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                        <Users size={14} />
-                        {c._count.enrollments} {c._count.enrollments === 1 ? 'aluno' : 'alunos'}
-                      </span>
-                      {c.schedule && (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                          <Clock size={14} />
-                          {c.schedule}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <ChevronRight size={24} color="var(--text-secondary)" />
-              </div>
-            </Link>
-          ))
-        )}
-      </div>
+      <ClassSortableList initialClasses={classes} />
     </div>
   )
 }
