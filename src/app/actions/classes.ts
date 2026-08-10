@@ -90,21 +90,7 @@ export async function createClassAction(formData: FormData) {
       subject = await prisma.subject.create({ data: { name: subjectName } })
     }
 
-    // Check if class already exists
-    const existingClass = await prisma.class.findFirst({
-      where: {
-        institutionId: institution.id,
-        semesterId: semester.id,
-        subjectId: subject.id,
-        turmaName: turmaName,
-        schedule: schedule,
-        professor
-      }
-    })
-
-    if (existingClass) {
-      return { success: false, message: 'Esta turma já existe.' }
-    }
+    // Removed the duplicate check as requested by the user, so they can create classes freely
 
     await prisma.class.create({
       data: {
