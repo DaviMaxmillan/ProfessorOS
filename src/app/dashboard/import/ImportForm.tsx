@@ -9,6 +9,8 @@ type ClassData = {
   institution: { name: string } | null;
   semester: { name: string };
   subject: { name: string };
+  turmaName: string | null;
+  schedule: string | null;
 }
 
 export default function ImportForm({ classes }: { classes: ClassData[] }) {
@@ -100,7 +102,7 @@ export default function ImportForm({ classes }: { classes: ClassData[] }) {
         >
           {classes.map(c => (
             <option key={c.id} value={c.id} style={{ background: '#111827' }}>
-              {c.institution?.name ? `${c.institution.name} - ` : ''}{c.subject.name} - {c.semester.name}
+              {c.subject.name}{c.turmaName ? ` — ${c.turmaName}` : ''} | {c.semester.name}{c.schedule ? ` | ${c.schedule}` : ''}
             </option>
           ))}
         </select>
