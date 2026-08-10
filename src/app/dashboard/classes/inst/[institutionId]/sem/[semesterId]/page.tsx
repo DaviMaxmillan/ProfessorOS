@@ -6,6 +6,19 @@ import { notFound } from 'next/navigation'
 import { ChevronRight, ArrowLeft, BookOpen, Users, Clock } from 'lucide-react'
 import CreateClassForm from '../../../../CreateClassForm'
 
+function getLowestDayIndex(schedule: string | null): number {
+  if (!schedule) return 8;
+  const str = schedule.toLowerCase();
+  if (str.includes('seg')) return 1;
+  if (str.includes('ter')) return 2;
+  if (str.includes('qua')) return 3;
+  if (str.includes('qui')) return 4;
+  if (str.includes('sex')) return 5;
+  if (str.includes('sab') || str.includes('sáb')) return 6;
+  if (str.includes('dom')) return 7;
+  return 8;
+}
+
 export default async function SemesterClassesPage({
   params
 }: {
@@ -35,6 +48,18 @@ export default async function SemesterClassesPage({
       _count: { select: { enrollments: true } }
     },
     orderBy: { id: 'desc' }
+  })
+
+  // Sort by day of week, then by subject name
+  classes.sort((a, b) => {
+    const dayA = getLowestDayIndex(a.schedule)
+    const dayB = getLowestDayIndex(b.schedule)
+    
+    if (dayA !== dayB) {
+      return dayA - dayB
+    }
+    
+    return a.subject.name.localeCompare(b.subject.name)
   })
 
   return (
