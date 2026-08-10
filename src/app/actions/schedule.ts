@@ -116,3 +116,74 @@ export async function deleteScheduleEntryAction(entryId: string) {
     return { success: false, message: `Erro ao excluir data: ${error.message}` }
   }
 }
+
+export async function copyScheduleEntryAction(sourceEntryId: string, targetEntryId: string) {
+  try {
+    const source = await prisma.scheduleEntry.findUnique({ where: { id: sourceEntryId } })
+    if (!source) return { success: false, message: 'Aula de origem não encontrada.' }
+
+    await prisma.scheduleEntry.update({
+      where: { id: targetEntryId },
+      data: {
+        content: source.content,
+        notes: source.notes,
+        rowColor: source.rowColor,
+        driveLink: source.driveLink,
+      }
+    })
+    revalidatePath('/dashboard/classes/[id]', 'page')
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, message: `Erro ao copiar aula: ${error.message}` }
+  }
+}
+
+export async function mirrorSchedulePlanAction(
+  sourceClassId: string,
+  targetClassId: string,
+  overwrite: boolean
+) {
+  try {
+    const [sourceEntries, targetEntries] = await Promise.all([
+      prisma.scheduleEntry.findMany({
+        where: { classId: sourceClassId },
+        orderBy: { date: 'asc' }
+      }),
+      prisma.scheduleEntry.findMany({
+        where: { classId: targetClassId },
+        orderBy: { date: 'asc' }
+      })
+    ])
+
+    // Filter source entries that have content
+    const sourceWithContent = sourceEntries.filter(e => e.content && e.content.trim() !== '')
+
+    // Filter target entries to candidates (skip holidays unless overwrite)
+    const targetCandidates = targetEntries.filter(e => {
+      if (e.isHoliday) return false  // never overwrite holidays
+      if (!overwrite && e.content && e.content.trim() !== '') return false  // skip non-empty if not overwriting
+      return true
+    })
+
+    const updates = []
+    for (let i = 0; i < Math.min(sourceWithContent.length, targetCandidates.length); i++) {
+      updates.push(
+        prisma.scheduleEntry.update({
+          where: { id: targetCandidates[i].id },
+          data: {
+            content: sourceWithContent[i].content,
+            notes: sourceWithContent[i].notes,
+            rowColor: sourceWithContent[i].rowColor,
+            driveLink: sourceWithContent[i].driveLink,
+          }
+        })
+      )
+    }
+
+    await prisma.$transaction(updates)
+    revalidatePath('/dashboard/classes/[id]', 'page')
+    return { success: true, count: updates.length }
+  } catch (error: any) {
+    return { success: false, message: `Erro ao espelhar plano: ${error.message}` }
+  }
+}

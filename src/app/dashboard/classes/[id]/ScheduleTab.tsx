@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Calendar, Save, Plus, Trash2, CalendarDays, Palette, Edit2, Check, X, ExternalLink, Filter } from 'lucide-react'
-import { generateScheduleAction, updateScheduleEntryAction, deleteScheduleEntryAction, addSingleScheduleEntryAction } from '@/app/actions/schedule'
+import { Calendar, Plus, Trash2, CalendarDays, Palette, ExternalLink, Filter, Copy, RefreshCw } from 'lucide-react'
+import { generateScheduleAction, updateScheduleEntryAction, deleteScheduleEntryAction, addSingleScheduleEntryAction, copyScheduleEntryAction, mirrorSchedulePlanAction } from '@/app/actions/schedule'
 
-export default function ScheduleTab({ classData }: { classData: any }) {
+export default function ScheduleTab({ classData, allClasses }: { classData: any; allClasses: any[] }) {
   const [isGenerating, setIsGenerating] = useState(false)
   const [startDate, setStartDate] = useState(classData.startDate ? new Date(classData.startDate).toISOString().split('T')[0] : '')
   const [endDate, setEndDate] = useState(classData.endDate ? new Date(classData.endDate).toISOString().split('T')[0] : '')
@@ -12,6 +12,18 @@ export default function ScheduleTab({ classData }: { classData: any }) {
   
   const [newDate, setNewDate] = useState('')
   const [filterColor, setFilterColor] = useState('ALL')
+
+  // Copy single entry state
+  const [copyingEntryId, setCopyingEntryId] = useState<string | null>(null)
+  const [copyTargetClassId, setCopyTargetClassId] = useState('')
+  const [copyTargetEntryId, setCopyTargetEntryId] = useState('')
+  const [isCopying, setIsCopying] = useState(false)
+
+  // Mirror modal state
+  const [showMirrorModal, setShowMirrorModal] = useState(false)
+  const [mirrorTargetClassId, setMirrorTargetClassId] = useState('')
+  const [mirrorOverwrite, setMirrorOverwrite] = useState(false)
+  const [isMirroring, setIsMirroring] = useState(false)
   
   // State for inline editing
   const [editingEntry, setEditingEntry] = useState<string | null>(null)
@@ -103,6 +115,36 @@ export default function ScheduleTab({ classData }: { classData: any }) {
       setConfirmDeleteId(entryId)
       // reset after 5 seconds
       setTimeout(() => setConfirmDeleteId(null), 5000)
+    }
+  }
+
+  const otherClasses = allClasses.filter(c => c.id !== classData.id)
+
+  const handleCopyEntry = async () => {
+    if (!copyTargetClassId || !copyTargetEntryId) return
+    setIsCopying(true)
+    const res = await copyScheduleEntryAction(copyingEntryId!, copyTargetEntryId)
+    setIsCopying(false)
+    if (res.success) {
+      setCopyingEntryId(null)
+      setCopyTargetClassId('')
+      setCopyTargetEntryId('')
+      alert('✅ Aula copiada com sucesso!')
+    } else {
+      alert(res.message)
+    }
+  }
+
+  const handleMirror = async () => {
+    if (!mirrorTargetClassId) return
+    setIsMirroring(true)
+    const res = await mirrorSchedulePlanAction(classData.id, mirrorTargetClassId, mirrorOverwrite)
+    setIsMirroring(false)
+    if (res.success) {
+      setShowMirrorModal(false)
+      alert(`✅ ${(res as any).count} aulas espelhadas com sucesso!`)
+    } else {
+      alert(res.message)
     }
   }
 
@@ -210,7 +252,7 @@ export default function ScheduleTab({ classData }: { classData: any }) {
           
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             {/* Filter */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: '8px' }}>
               <Filter size={14} color="var(--text-secondary)" />
               <select 
                 value={filterColor} 
@@ -221,6 +263,17 @@ export default function ScheduleTab({ classData }: { classData: any }) {
                 {colors.map(c => <option key={c.val} value={c.val}>{c.label}</option>)}
               </select>
             </div>
+
+            {/* Mirror button */}
+            {otherClasses.length > 0 && (
+              <button
+                onClick={() => setShowMirrorModal(true)}
+                style={{ padding: '8px 12px', borderRadius: '6px', background: 'rgba(168, 85, 247, 0.15)', border: '1px solid rgba(168, 85, 247, 0.4)', color: '#c084fc', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+                title="Espelhar plano de aula para outra turma"
+              >
+                <RefreshCw size={14} /> Espelhar Plano
+              </button>
+            )}
             
             <input 
               type="date" 
@@ -249,7 +302,7 @@ export default function ScheduleTab({ classData }: { classData: any }) {
                   <th style={{ padding: '12px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: '500', width: '120px' }}>Data</th>
                   <th style={{ padding: '12px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: '500' }}>Plano de Aula / Conteúdo</th>
                   <th style={{ padding: '12px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: '500', width: '250px' }}>Observações</th>
-                  <th style={{ padding: '12px', textAlign: 'center', color: 'var(--text-secondary)', fontWeight: '500', width: '120px' }}>Ações</th>
+                  <th style={{ padding: '12px', textAlign: 'center', color: 'var(--text-secondary)', fontWeight: '500', width: '150px' }}>Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -344,6 +397,15 @@ export default function ScheduleTab({ classData }: { classData: any }) {
                               >
                                 ✏️
                               </button>
+                              {otherClasses.length > 0 && (
+                                <button 
+                                  onClick={() => { setCopyingEntryId(entry.id); setCopyTargetClassId(''); setCopyTargetEntryId('') }}
+                                  style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px' }}
+                                  title="Copiar esta aula para outra turma"
+                                >
+                                  <Copy size={15} />
+                                </button>
+                              )}
                               <button 
                                 onClick={() => handleDelete(entry.id)}
                                 style={{ 
@@ -359,6 +421,57 @@ export default function ScheduleTab({ classData }: { classData: any }) {
                                 {confirmDeleteId === entry.id ? 'Confirmar' : <Trash2 size={16} />}
                               </button>
                             </div>
+
+                            {/* Copy popover */}
+                            {copyingEntryId === entry.id && (
+                              <div style={{ marginTop: '8px', padding: '12px', background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(165,180,252,0.3)', borderRadius: '8px', textAlign: 'left', minWidth: '220px' }}>
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Copiar para:</p>
+                                <select
+                                  value={copyTargetClassId}
+                                  onChange={e => { setCopyTargetClassId(e.target.value); setCopyTargetEntryId('') }}
+                                  style={{ width: '100%', padding: '6px', borderRadius: '4px', background: 'rgba(0,0,0,0.4)', border: '1px solid var(--surface-border)', color: '#fff', fontSize: '0.8rem', marginBottom: '6px' }}
+                                >
+                                  <option value="">Selecione a turma...</option>
+                                  {otherClasses.map(c => (
+                                    <option key={c.id} value={c.id}>
+                                      {c.subject.name}{c.turmaName ? ` — ${c.turmaName}` : ''} | {c.semester.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                {copyTargetClassId && (
+                                  <select
+                                    value={copyTargetEntryId}
+                                    onChange={e => setCopyTargetEntryId(e.target.value)}
+                                    style={{ width: '100%', padding: '6px', borderRadius: '4px', background: 'rgba(0,0,0,0.4)', border: '1px solid var(--surface-border)', color: '#fff', fontSize: '0.8rem', marginBottom: '8px' }}
+                                  >
+                                    <option value="">Selecione a data...</option>
+                                    {otherClasses
+                                      .find(c => c.id === copyTargetClassId)
+                                      ?.scheduleEntries
+                                      .map((e: any) => (
+                                        <option key={e.id} value={e.id}>
+                                          {new Date(e.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}{e.content ? ` — ${e.content.substring(0, 30)}...` : ''}
+                                        </option>
+                                      ))}
+                                  </select>
+                                )}
+                                <div style={{ display: 'flex', gap: '6px' }}>
+                                  <button
+                                    onClick={handleCopyEntry}
+                                    disabled={!copyTargetEntryId || isCopying}
+                                    style={{ flex: 1, padding: '6px', background: 'rgba(165,180,252,0.2)', border: '1px solid rgba(165,180,252,0.4)', color: 'var(--accent)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                  >
+                                    {isCopying ? '...' : 'Copiar'}
+                                  </button>
+                                  <button
+                                    onClick={() => setCopyingEntryId(null)}
+                                    style={{ padding: '6px 10px', background: 'transparent', border: '1px solid var(--surface-border)', color: 'var(--text-secondary)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </td>
                         </>
                       )}
@@ -370,6 +483,66 @@ export default function ScheduleTab({ classData }: { classData: any }) {
           </div>
         )}
       </div>
+
+      {/* Mirror Modal */}
+      {showMirrorModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="glass-panel" style={{ padding: '32px', width: '100%', maxWidth: '480px', margin: '16px' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <RefreshCw size={20} color="#c084fc" /> Espelhar Plano de Aula
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '24px' }}>
+              O conteúdo das aulas desta turma será distribuído sequencialmente para os dias de aula da turma escolhida, pulando automaticamente os feriados.
+            </p>
+
+            <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Turma de Destino</label>
+            <select
+              value={mirrorTargetClassId}
+              onChange={e => setMirrorTargetClassId(e.target.value)}
+              style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(0,0,0,0.4)', border: '1px solid var(--surface-border)', color: '#fff', fontSize: '0.95rem', marginBottom: '20px' }}
+            >
+              <option value="">Selecione a turma...</option>
+              {otherClasses.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.subject.name}{c.turmaName ? ` — ${c.turmaName}` : ''} | {c.semester.name}{c.schedule ? ` | ${c.schedule}` : ''}
+                </option>
+              ))}
+            </select>
+
+            <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Modo de Preenchimento</label>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '24px' }}>
+              <button
+                onClick={() => setMirrorOverwrite(false)}
+                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: `2px solid ${!mirrorOverwrite ? '#a78bfa' : 'var(--surface-border)'}`, background: !mirrorOverwrite ? 'rgba(167,139,250,0.1)' : 'transparent', color: !mirrorOverwrite ? '#c084fc' : 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: !mirrorOverwrite ? '600' : '400' }}
+              >
+                Apenas aulas vazias
+              </button>
+              <button
+                onClick={() => setMirrorOverwrite(true)}
+                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: `2px solid ${mirrorOverwrite ? '#f87171' : 'var(--surface-border)'}`, background: mirrorOverwrite ? 'rgba(248,113,113,0.1)' : 'transparent', color: mirrorOverwrite ? '#f87171' : 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: mirrorOverwrite ? '600' : '400' }}
+              >
+                ⚠️ Sobrescrever tudo
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={handleMirror}
+                disabled={!mirrorTargetClassId || isMirroring}
+                style={{ flex: 1, padding: '12px', background: mirrorTargetClassId ? 'rgba(167,139,250,0.2)' : 'rgba(255,255,255,0.05)', border: `1px solid ${mirrorTargetClassId ? 'rgba(167,139,250,0.5)' : 'var(--surface-border)'}`, color: mirrorTargetClassId ? '#c084fc' : 'var(--text-secondary)', borderRadius: '8px', cursor: mirrorTargetClassId ? 'pointer' : 'not-allowed', fontWeight: '600', fontSize: '0.95rem' }}
+              >
+                {isMirroring ? 'Espelhando...' : '🔁 Espelhar Agora'}
+              </button>
+              <button
+                onClick={() => setShowMirrorModal(false)}
+                style={{ padding: '12px 20px', background: 'transparent', border: '1px solid var(--surface-border)', color: 'var(--text-secondary)', borderRadius: '8px', cursor: 'pointer' }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

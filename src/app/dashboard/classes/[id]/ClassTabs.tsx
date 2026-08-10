@@ -11,6 +11,7 @@ import { updateEnrollmentStatusAction } from '@/app/actions/diary'
 
 type ClassTabsProps = {
   classData: any;
+  allClasses: any[];
 }
 
 const STATUS_OPTIONS = [
@@ -23,7 +24,7 @@ function getStatusInfo(status: string | null) {
   return STATUS_OPTIONS.find(s => s.value === status) ?? STATUS_OPTIONS[0]
 }
 
-export default function ClassTabs({ classData }: ClassTabsProps) {
+export default function ClassTabs({ classData, allClasses }: ClassTabsProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'grades' | 'attendance' | 'schedule' | 'groupwork' | 'notes'>('overview')
   // local status state so UI updates immediately without a full reload
   const [statusMap, setStatusMap] = useState<Record<string, string>>(() => {
@@ -174,7 +175,7 @@ export default function ClassTabs({ classData }: ClassTabsProps) {
 
       {activeTab === 'grades' && <GradesTab classData={classData} />}
       {activeTab === 'attendance' && <AttendanceTab classData={classData} />}
-      {activeTab === 'schedule' && <ScheduleTab classData={classData} />}
+      {activeTab === 'schedule' && <ScheduleTab classData={classData} allClasses={allClasses} />}
       {activeTab === 'groupwork' && <GroupWorkTab classData={classData} />}
       {activeTab === 'notes' && <NotesTab classData={classData} />}
 

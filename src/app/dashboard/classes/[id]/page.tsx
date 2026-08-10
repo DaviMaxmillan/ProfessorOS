@@ -57,6 +57,12 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ id
     }
   })
 
+  // All classes for copy/mirror feature
+  const allClasses = await prisma.class.findMany({
+    include: { subject: true, semester: true, scheduleEntries: { orderBy: { date: 'asc' } } },
+    orderBy: { order: 'asc' }
+  })
+
   if (!classData) {
     notFound()
   }
@@ -71,7 +77,7 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ id
 
       <ClassHeader classData={classData} />
 
-      <ClassTabs classData={classData} />
+      <ClassTabs classData={classData} allClasses={allClasses} />
     </div>
   )
 }
