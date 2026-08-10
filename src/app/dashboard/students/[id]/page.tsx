@@ -71,8 +71,9 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: 'rgba(0,0,0,0.2)', textAlign: 'left' }}>
-                <th style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: '500', borderBottom: '1px solid var(--surface-border)' }}>Disciplina</th>
+                <th style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: '500', borderBottom: '1px solid var(--surface-border)' }}>Disciplina / Turma</th>
                 <th style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: '500', borderBottom: '1px solid var(--surface-border)' }}>Semestre</th>
+                <th style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: '500', borderBottom: '1px solid var(--surface-border)' }}>Período</th>
                 <th style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: '500', borderBottom: '1px solid var(--surface-border)' }}>Status</th>
                 <th style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: '500', borderBottom: '1px solid var(--surface-border)', textAlign: 'center' }}>Ação</th>
               </tr>
@@ -81,10 +82,13 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
               {student.enrollments.map((enrollment, index) => (
                 <tr key={enrollment.id} style={{ borderBottom: '1px solid var(--surface-border)', background: index % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
                   <td style={{ padding: '16px 20px', fontWeight: '500', color: 'var(--text-primary)' }}>
-                    {enrollment.class.subject.name}
+                    {enrollment.class.subject.name}{enrollment.class.turmaName ? ` — ${enrollment.class.turmaName}` : ''}
                   </td>
                   <td style={{ padding: '16px 20px', color: 'var(--text-secondary)' }}>
                     {enrollment.class.semester.name}
+                  </td>
+                  <td style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                    {enrollment.class.schedule || '—'}
                   </td>
                   <td style={{ padding: '16px 20px' }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#4ade80', fontSize: '0.9rem' }}>

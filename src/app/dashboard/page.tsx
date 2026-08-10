@@ -91,8 +91,8 @@ export default async function DashboardPage() {
             {recentClasses.map(c => (
               <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '12px', border: '1px solid var(--surface-border)' }}>
                 <div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: '500', color: 'var(--text-primary)' }}>{c.subject.name}</h3>
-                  <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{c.semester.name} • {c.professor}</p>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: '500', color: 'var(--text-primary)' }}>{c.subject.name}{c.turmaName ? ` — ${c.turmaName}` : ''}</h3>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{c.semester.name}{c.schedule ? ` • ${c.schedule}` : ''}</p>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <p style={{ fontSize: '1.1rem', fontWeight: '600' }}>{c._count.enrollments}</p>

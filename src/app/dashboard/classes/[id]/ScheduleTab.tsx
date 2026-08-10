@@ -434,7 +434,7 @@ export default function ScheduleTab({ classData, allClasses }: { classData: any;
                                   <option value="">Selecione a turma...</option>
                                   {otherClasses.map(c => (
                                     <option key={c.id} value={c.id}>
-                                      {c.subject.name}{c.turmaName ? ` — ${c.turmaName}` : ''} | {c.semester.name}
+                                      {c.subject.name}{c.turmaName ? ` — ${c.turmaName}` : ''} | {c.semester.name}{c.schedule ? ` | ${c.schedule}` : ''}
                                     </option>
                                   ))}
                                 </select>

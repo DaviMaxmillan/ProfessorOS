@@ -81,7 +81,7 @@ export default function ReportsPage() {
             <option value="">-- Escolha uma turma --</option>
             {filters?.classes.map((c: any) => (
               <option key={c.id} value={c.id}>
-                {c.subject.name} - {c.semester.name} ({c.turmaName || 'Sem nome'})
+                {c.subject.name}{c.turmaName ? ` — ${c.turmaName}` : ''} | {c.semester.name}{c.schedule ? ` | ${c.schedule}` : ''}
               </option>
             ))}
           </select>
