@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Calendar, Save, Plus, Trash2, CalendarDays, Palette, Edit2, Check, X, ExternalLink } from 'lucide-react'
+import { Calendar, Save, Plus, Trash2, CalendarDays, Palette, Edit2, Check, X, ExternalLink, Filter } from 'lucide-react'
 import { generateScheduleAction, updateScheduleEntryAction, deleteScheduleEntryAction, addSingleScheduleEntryAction } from '@/app/actions/schedule'
 
 export default function ScheduleTab({ classData }: { classData: any }) {
@@ -11,6 +11,7 @@ export default function ScheduleTab({ classData }: { classData: any }) {
   const [selectedDays, setSelectedDays] = useState<number[]>(classData.daysOfWeek ? JSON.parse(classData.daysOfWeek) : [])
   
   const [newDate, setNewDate] = useState('')
+  const [filterColor, setFilterColor] = useState('ALL')
   
   // State for inline editing
   const [editingEntry, setEditingEntry] = useState<string | null>(null)
@@ -117,6 +118,14 @@ export default function ScheduleTab({ classData }: { classData: any }) {
   // Sort entries by date
   const sortedEntries = [...(classData.scheduleEntries || [])].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
+  // Filter entries
+  const filteredEntries = sortedEntries.filter(entry => {
+    if (filterColor === 'ALL') return true
+    const defaultBg = entry.isHoliday ? 'rgba(239, 68, 68, 0.1)' : ''
+    const bg = entry.rowColor || defaultBg
+    return bg === filterColor
+  })
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Painel de Configuração / Geração */}
@@ -196,10 +205,23 @@ export default function ScheduleTab({ classData }: { classData: any }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Calendar size={20} color="var(--accent)" /> 
-            Aulas ({sortedEntries.length})
+            Aulas ({filteredEntries.length})
           </h3>
           
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {/* Filter */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: '16px' }}>
+              <Filter size={14} color="var(--text-secondary)" />
+              <select 
+                value={filterColor} 
+                onChange={e => setFilterColor(e.target.value)}
+                style={{ padding: '6px 8px', borderRadius: '4px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--surface-border)', color: '#fff', fontSize: '0.85rem' }}
+              >
+                <option value="ALL">Todas as Linhas</option>
+                {colors.map(c => <option key={c.val} value={c.val}>{c.label}</option>)}
+              </select>
+            </div>
+            
             <input 
               type="date" 
               value={newDate} 
@@ -215,10 +237,9 @@ export default function ScheduleTab({ classData }: { classData: any }) {
           </div>
         </div>
 
-        {sortedEntries.length === 0 ? (
+        {filteredEntries.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
-            <p>Nenhuma data gerada no cronograma.</p>
-            <p style={{ fontSize: '0.9rem' }}>Use o painel acima para gerar as datas automaticamente.</p>
+            <p>Nenhuma aula encontrada para este filtro.</p>
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -232,13 +253,13 @@ export default function ScheduleTab({ classData }: { classData: any }) {
                 </tr>
               </thead>
               <tbody>
-                {sortedEntries.map((entry: any) => {
+                {filteredEntries.map((entry: any) => {
                   const dateObj = new Date(entry.date)
                   // Format as DD/MM/YYYY using UTC to avoid timezone shift
                   const formattedDate = dateObj.toLocaleDateString('pt-BR', { timeZone: 'UTC' })
                   
                   const isEditing = editingEntry === entry.id
-                  const defaultBg = entry.isHoliday ? 'rgba(239, 68, 68, 0.1)' : 'transparent'
+                  const defaultBg = entry.isHoliday ? 'rgba(239, 68, 68, 0.1)' : ''
                   const bg = entry.rowColor || defaultBg
 
                   return (
