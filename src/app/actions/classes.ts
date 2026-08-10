@@ -96,6 +96,8 @@ export async function createClassAction(formData: FormData) {
         institutionId: institution.id,
         semesterId: semester.id,
         subjectId: subject.id,
+        turmaName: turmaName,
+        schedule: schedule,
         professor
       }
     })
