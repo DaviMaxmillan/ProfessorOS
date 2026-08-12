@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Users, Plus, Trash2, Edit2, Settings, Shuffle, GraduationCap } from 'lucide-react'
+import { Users, Plus, Trash2, Edit2, Settings, Shuffle, GraduationCap, FileSpreadsheet } from 'lucide-react'
 import { 
   createGroupWorkAction, 
   deleteGroupWorkAction, 
@@ -13,6 +13,7 @@ import {
   generateRandomGroupsAction,
   updateGroupWorkAction
 } from '@/app/actions/groupwork'
+import { buildGroupsSheet, exportSheetXLSX } from '@/lib/exportClass'
 
 export default function GroupWorkTab({ classData }: { classData: any }) {
   const [selectedGroupWork, setSelectedGroupWork] = useState<any>(null)
@@ -50,12 +51,25 @@ export default function GroupWorkTab({ classData }: { classData: any }) {
       <div className="glass-panel" style={{ width: '300px', flexShrink: 0, padding: '20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Trabalhos</h3>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button 
             onClick={() => setIsCreatingGW(true)}
             style={{ background: 'var(--accent)', color: '#000', border: 'none', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
           >
             <Plus size={16} /> Novo
           </button>
+          <button
+            onClick={() => {
+              const ws = buildGroupsSheet(classData)
+              const label = `${classData.subject.name}${classData.turmaName ? `_${classData.turmaName}` : ''}_${classData.semester.name}`.replace(/[/\\?%*:|"<>]/g, '-')
+              exportSheetXLSX(ws, 'Grupos', `Grupos_${label}.xlsx`)
+            }}
+            title="Exportar grupos"
+            style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+          >
+            <FileSpreadsheet size={15} />
+          </button>
+        </div>
         </div>
 
         {isCreatingGW && (

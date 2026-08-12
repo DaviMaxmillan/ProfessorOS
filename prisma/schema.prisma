@@ -15,6 +15,7 @@ datasource db {
 model Settings {
   id       String @id @default(cuid())
   password String // Hashed admin password
+  theme    String @default("dark") // "dark" ou "light"
 }
 
 model Institution {
@@ -59,10 +60,11 @@ model Class {
 }
 
 model Student {
-  id          String   @id @default(cuid())
-  name        String
-  rgm         String?  @unique
-  enrollments Enrollment[]
+  id           String               @id @default(cuid())
+  name         String
+  rgm          String?              @unique
+  enrollments  Enrollment[]
+  specialNeeds StudentSpecialNeed[]
 }
 
 model Enrollment {
@@ -80,6 +82,7 @@ model Enrollment {
   status    String?
   notes     String?  // Anotação privada do professor sobre este aluno nesta turma
   groupMembers GroupMember[]
+  studentSpecialNeeds StudentSpecialNeed[]
 }
 
 model Activity {
@@ -179,4 +182,34 @@ model ClassNote {
   updatedAt DateTime @updatedAt
 
   class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+}
+
+model SpecialNeed {
+  id          String   @id @default(cuid())
+  name        String   // Ex: "Saída Antecipada", "Afastamento Médico"
+  description String?  // Descrição geral da necessidade
+  category    String   @default("PEDAGOGICA") // "SAUDE", "PEDAGOGICA", "MOBILIDADE", "LEGAL", "OUTRO"
+  color       String   @default("#6366f1") // Cor para identificação visual
+  actions     String?  // Ações necessárias (texto livre)
+  createdAt   DateTime @default(now())
+
+  studentNeeds StudentSpecialNeed[]
+}
+
+model StudentSpecialNeed {
+  id            String      @id @default(cuid())
+  studentId     String
+  specialNeedId String
+  enrollmentId  String      // Vinculado a uma matrícula específica (aluno + turma)
+  notes         String?     // Observação individual
+  startDate     DateTime?
+  endDate       DateTime?   // null = sem prazo definido
+  active        Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  specialNeed  SpecialNeed  @relation(fields: [specialNeedId], references: [id], onDelete: Cascade)
+  enrollment   Enrollment   @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, specialNeedId, enrollmentId])
 }

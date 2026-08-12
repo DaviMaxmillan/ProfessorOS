@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Save, Calculator, Settings, X, Edit2, StickyNote } from 'lucide-react'
+import { Plus, Save, Calculator, Settings, X, Edit2, StickyNote, FileSpreadsheet } from 'lucide-react'
 import { createActivityAction, saveGradesAction, updateClassCalculationMethod, deleteActivityAction, updateStudentNameAction, saveEnrollmentNotesAction } from '@/app/actions/diary'
+import { buildGradesSheet, exportSheetXLSX } from '@/lib/exportClass'
 
 export default function GradesTab({ classData }: { classData: any }) {
   const [isAddingActivity, setIsAddingActivity] = useState(false)
@@ -180,9 +181,21 @@ export default function GradesTab({ classData }: { classData: any }) {
         </div>
         
         {!isAddingActivity ? (
-          <button className="btn-primary" onClick={() => setIsAddingActivity(true)}>
-            <Plus size={18} /> Nova Atividade
-          </button>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <button
+              onClick={() => {
+                const ws = buildGradesSheet(classData)
+                const label = `${classData.subject.name}${classData.turmaName ? `_${classData.turmaName}` : ''}_${classData.semester.name}`.replace(/[/\\?%*:|"<>]/g, '-')
+                exportSheetXLSX(ws, 'Diário de Notas', `Notas_${label}.xlsx`)
+              }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '10px 16px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981', borderRadius: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500 }}
+            >
+              <FileSpreadsheet size={16} /> Exportar XLSX
+            </button>
+            <button className="btn-primary" onClick={() => setIsAddingActivity(true)}>
+              <Plus size={18} /> Nova Atividade
+            </button>
+          </div>
         ) : (
           <form onSubmit={handleCreateActivity} style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px', flexWrap: 'wrap' }}>
             <select name="bimester" required style={{ padding: '8px', borderRadius: '4px', border: '1px solid var(--surface-border)', background: 'rgba(0,0,0,0.3)', color: '#fff' }}>

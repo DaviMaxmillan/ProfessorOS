@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Calendar, Plus, Trash2, CalendarDays, Palette, ExternalLink, Filter, Copy, RefreshCw } from 'lucide-react'
+import { Calendar, Plus, Trash2, CalendarDays, Palette, ExternalLink, Filter, Copy, RefreshCw, FileSpreadsheet } from 'lucide-react'
 import { generateScheduleAction, updateScheduleEntryAction, deleteScheduleEntryAction, addSingleScheduleEntryAction, copyScheduleEntryAction, mirrorSchedulePlanAction } from '@/app/actions/schedule'
+import { buildScheduleSheet, exportSheetXLSX } from '@/lib/exportClass'
 
 export default function ScheduleTab({ classData, allClasses }: { classData: any; allClasses: any[] }) {
   const [isGenerating, setIsGenerating] = useState(false)
@@ -274,6 +275,19 @@ export default function ScheduleTab({ classData, allClasses }: { classData: any;
                 <RefreshCw size={14} /> Espelhar Plano
               </button>
             )}
+
+            {/* Export button */}
+            <button
+              onClick={() => {
+                const ws = buildScheduleSheet(classData)
+                const label = `${classData.subject.name}${classData.turmaName ? `_${classData.turmaName}` : ''}_${classData.semester.name}`.replace(/[/\\?%*:|"<>]/g, '-')
+                exportSheetXLSX(ws, 'Cronograma', `Cronograma_${label}.xlsx`)
+              }}
+              style={{ padding: '8px 12px', borderRadius: '6px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+              title="Exportar cronograma para XLSX"
+            >
+              <FileSpreadsheet size={14} /> Exportar XLSX
+            </button>
             
             <input 
               type="date" 

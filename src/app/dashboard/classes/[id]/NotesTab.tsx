@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Plus, Pin, Trash2, Edit2, Check, X, Search, ALargeSmall } from 'lucide-react'
+import { Plus, Pin, Trash2, Edit2, Check, X, Search, ALargeSmall, FileSpreadsheet } from 'lucide-react'
 import { createNoteAction, updateNoteAction, deleteNoteAction } from '@/app/actions/notes'
+import { buildNotesSheet, exportSheetXLSX } from '@/lib/exportClass'
 
 const LABELS = [
   { value: 'recado',   emoji: '📣', label: 'Recado',   color: '#60a5fa' },
@@ -301,6 +302,16 @@ export default function NotesTab({ classData }: { classData: any }) {
 
         <button onClick={() => setIsCreating(true)} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', flexShrink: 0 }}>
           <Plus size={16} /> Nova Nota
+        </button>
+        <button
+          onClick={() => {
+            const ws = buildNotesSheet(classData)
+            const label = `${classData.subject.name}${classData.turmaName ? `_${classData.turmaName}` : ''}_${classData.semester.name}`.replace(/[/\\?%*:|"<>]/g, '-')
+            exportSheetXLSX(ws, 'Notas', `Notas_Turma_${label}.xlsx`)
+          }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500, flexShrink: 0 }}
+        >
+          <FileSpreadsheet size={15} /> Exportar XLSX
         </button>
       </div>
 

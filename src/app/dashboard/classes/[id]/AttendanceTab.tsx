@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, X, Save, Printer, Edit2 } from 'lucide-react'
+import { Check, X, Save, Printer, Edit2, FileSpreadsheet } from 'lucide-react'
 import { saveProvisionalAttendanceAction, updateStudentNameAction } from '@/app/actions/diary'
+import { buildAttendanceSheet, exportSheetXLSX } from '@/lib/exportClass'
 
 export default function AttendanceTab({ classData }: { classData: any }) {
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0])
@@ -68,6 +69,16 @@ export default function AttendanceTab({ classData }: { classData: any }) {
         <div style={{ display: 'flex', gap: '12px' }}>
           <button className="btn-primary" style={{ background: 'rgba(255,255,255,0.1)', color: '#fff' }} onClick={() => window.print()}>
             <Printer size={18} /> Imprimir em Branco
+          </button>
+          <button
+            onClick={() => {
+              const ws = buildAttendanceSheet(classData)
+              const label = `${classData.subject.name}${classData.turmaName ? `_${classData.turmaName}` : ''}_${classData.semester.name}`.replace(/[/\\?%*:|"<>]/g, '-')
+              exportSheetXLSX(ws, 'Frequência', `Frequencia_${label}.xlsx`)
+            }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '10px 16px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981', borderRadius: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500 }}
+          >
+            <FileSpreadsheet size={18} /> Exportar XLSX
           </button>
           <button className="btn-primary" onClick={handleSave} disabled={isSaving}>
             <Save size={18} /> {isSaving ? 'Salvando...' : 'Salvar Frequência'}

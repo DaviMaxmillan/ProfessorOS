@@ -8,6 +8,7 @@ import ScheduleTab from './ScheduleTab'
 import GroupWorkTab from './GroupWorkTab'
 import NotesTab from './NotesTab'
 import { updateEnrollmentStatusAction } from '@/app/actions/diary'
+import { buildStudentsSheet, exportSheetXLSX } from '@/lib/exportClass'
 
 type ClassTabsProps = {
   classData: any;
@@ -107,6 +108,18 @@ export default function ClassTabs({ classData, allClasses }: ClassTabsProps) {
 
       {activeTab === 'overview' && (
         <div className="glass-panel" style={{ overflow: 'hidden' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 16px', borderBottom: '1px solid var(--surface-border)' }}>
+            <button
+              onClick={() => {
+                const ws = buildStudentsSheet(classData)
+                const label = `${classData.subject.name}${classData.turmaName ? `_${classData.turmaName}` : ''}_${classData.semester.name}`.replace(/[/\\?%*:|"<>]/g, '-')
+                exportSheetXLSX(ws, 'Alunos', `Alunos_${label}.xlsx`)
+              }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 14px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500 }}
+            >
+              <FileSpreadsheet size={15} /> Exportar XLSX
+            </button>
+          </div>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: 'rgba(0,0,0,0.2)', textAlign: 'left' }}>

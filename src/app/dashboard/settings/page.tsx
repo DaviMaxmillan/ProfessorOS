@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Palette, Type, Check, RefreshCw } from 'lucide-react'
+import { Palette, Type, Check, RefreshCw, Sun, Moon } from 'lucide-react'
+import { saveThemeAction } from '@/app/actions/settings'
 
 const ACCENT_COLORS = [
   { label: 'Roxo (Padrão)', value: '#6366f1' },
@@ -22,6 +23,7 @@ const FONTS = [
 export default function SettingsPage() {
   const [currentAccent, setCurrentAccent] = useState('#6366f1')
   const [currentFont, setCurrentFont] = useState("'Inter', sans-serif")
+  const [currentTheme, setCurrentTheme] = useState<'dark' | 'light'>('dark')
   const [showSavedMsg, setShowSavedMsg] = useState(false)
 
   useEffect(() => {
@@ -30,6 +32,10 @@ export default function SettingsPage() {
 
     const savedFont = localStorage.getItem('professoros_font_family')
     if (savedFont) setCurrentFont(savedFont)
+
+    // Read theme from html attribute
+    const t = document.documentElement.getAttribute('data-theme') as 'dark' | 'light'
+    if (t) setCurrentTheme(t)
   }, [])
 
   const applyColor = (color: string) => {
@@ -54,9 +60,17 @@ export default function SettingsPage() {
     showSaved()
   }
 
+  const applyTheme = async (t: 'dark' | 'light') => {
+    setCurrentTheme(t)
+    document.documentElement.setAttribute('data-theme', t)
+    await saveThemeAction(t)
+    showSaved()
+  }
+
   const resetDefaults = () => {
     applyColor('#6366f1')
     applyFont("'Inter', sans-serif")
+    applyTheme('dark')
   }
 
   const showSaved = () => {
@@ -80,7 +94,43 @@ export default function SettingsPage() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         
-        {/* Cores */}
+        {/* Tema */}
+        <div className="glass-panel" style={{ padding: '32px' }}>
+          <h2 style={{ fontSize: '1.2rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
+            {currentTheme === 'dark' ? <Moon size={20} color="var(--accent)" /> : <Sun size={20} color="var(--accent)" />}
+            Tema da Interface
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '0.95rem' }}>
+            Alterne entre o tema escuro e o tema claro. A preferência é salva no banco de dados.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', maxWidth: '400px' }}>
+            {(['dark', 'light'] as const).map(t => {
+              const isActive = currentTheme === t
+              return (
+                <button
+                  key={t}
+                  onClick={() => applyTheme(t)}
+                  style={{
+                    background: t === 'dark' ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.8)',
+                    border: `2px solid ${isActive ? 'var(--accent)' : 'var(--surface-border)'}`,
+                    padding: '20px 16px', borderRadius: '12px', cursor: 'pointer',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px',
+                    transition: 'all 0.2s',
+                    boxShadow: isActive ? '0 0 0 1px var(--accent)' : 'none'
+                  }}
+                >
+                  {t === 'dark'
+                    ? <Moon size={28} color={isActive ? '#a5b4fc' : '#6b7280'} />
+                    : <Sun size={28} color={isActive ? '#6366f1' : '#6b7280'} />
+                  }
+                  <span style={{ color: t === 'dark' ? (isActive ? '#a5b4fc' : '#9ca3af') : (isActive ? '#6366f1' : '#374151'), fontWeight: isActive ? 600 : 400 }}>
+                    {t === 'dark' ? 'Escuro' : 'Claro'}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
         <div className="glass-panel" style={{ padding: '32px' }}>
           <h2 style={{ fontSize: '1.2rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
             <Palette size={20} color="var(--accent)" /> 

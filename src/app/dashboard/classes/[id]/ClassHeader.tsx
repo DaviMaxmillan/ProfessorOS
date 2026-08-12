@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { DownloadCloud, Edit, Trash2 } from 'lucide-react'
+import { DownloadCloud, Edit, Trash2, FileSpreadsheet, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { deleteClassAction, updateClassAction } from '@/app/actions/classes'
+import { exportAllXLSX } from '@/lib/exportClass'
 
 export default function ClassHeader({ classData }: { classData: any }) {
   const router = useRouter()
@@ -90,30 +91,92 @@ export default function ClassHeader({ classData }: { classData: any }) {
   }
 
   return (
-    <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
-      <div>
-        <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {classData.subject.name}{classData.turmaName ? ` — ${classData.turmaName}` : ''}
-          <button onClick={() => setIsEditing(true)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px' }} title="Editar Turma">
-            <Edit size={18} />
+    <div>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {classData.subject.name}{classData.turmaName ? ` — ${classData.turmaName}` : ''}
+            <button onClick={() => setIsEditing(true)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px' }} title="Editar Turma">
+              <Edit size={18} />
+            </button>
+          </h1>
+          <p className="page-description">
+            {classData.institution?.name ? `${classData.institution.name} • ` : ''}
+            {classData.semester.name} • {classData.professor}
+            {classData.schedule ? ` • ${classData.schedule}` : ''}
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button onClick={handleDelete} disabled={isDeleting} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', fontWeight: '500', cursor: 'pointer', transition: 'all 0.2s' }}>
+            <Trash2 size={20} />
+            {isDeleting ? 'Excluindo...' : 'Excluir Turma'}
           </button>
-        </h1>
-        <p className="page-description">
-          {classData.institution?.name ? `${classData.institution.name} • ` : ''}
-          {classData.semester.name} • {classData.professor}
-          {classData.schedule ? ` • ${classData.schedule}` : ''}
-        </p>
+          <button
+            onClick={() => exportAllXLSX(classData)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.1)', color: '#10b981', fontWeight: '500', cursor: 'pointer', transition: 'all 0.2s', fontSize: '0.9rem' }}
+            title="Exportar todos os dados desta turma em XLSX (múltiplas abas)"
+          >
+            <FileSpreadsheet size={18} /> Exportar Tudo
+          </button>
+          <Link href="/dashboard/import" className="btn-primary" style={{ background: 'rgba(255,255,255,0.1)', textDecoration: 'none', color: '#fff' }}>
+            <DownloadCloud size={20} />
+            Sincronizar Planilha
+          </Link>
+        </div>
       </div>
-      <div style={{ display: 'flex', gap: '12px' }}>
-        <button onClick={handleDelete} disabled={isDeleting} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', fontWeight: '500', cursor: 'pointer', transition: 'all 0.2s' }}>
-          <Trash2 size={20} />
-          {isDeleting ? 'Excluindo...' : 'Excluir Turma'}
-        </button>
-        <Link href="/dashboard/import" className="btn-primary" style={{ background: 'rgba(255,255,255,0.1)', textDecoration: 'none', color: '#fff' }}>
-          <DownloadCloud size={20} />
-          Sincronizar Planilha
-        </Link>
-      </div>
+
+      {/* Quick Stats Strip */}
+      <QuickStats classData={classData} />
+    </div>
+  )
+}
+
+function QuickStats({ classData }: { classData: any }) {
+  const activeEnrollments = classData.enrollments.filter((e: any) => !e.status || e.status === 'ATIVO')
+  const total = activeEnrollments.length
+
+  // Calculate estimated averages from grades
+  let avgSum = 0
+  let passCount = 0
+  let validCount = 0
+
+  activeEnrollments.forEach((e: any) => {
+    if (e.grades && e.grades.length > 0) {
+      let gradeSum = 0
+      e.grades.forEach((g: any) => { gradeSum += g.value })
+      const avg = classData.calculationMethod === 'AVERAGE'
+        ? gradeSum / e.grades.length
+        : gradeSum
+      avgSum += avg
+      if (avg >= 6) passCount++
+      validCount++
+    }
+  })
+
+  const classAvg = validCount > 0 ? (avgSum / validCount).toFixed(1) : '—'
+  const passRate = validCount > 0 ? Math.round((passCount / validCount) * 100) : null
+
+  const stats = [
+    { label: 'Alunos Ativos', value: String(total), color: 'var(--accent)', suffix: '' },
+    { label: 'Média Geral', value: classAvg, color: parseFloat(classAvg) >= 6 ? 'var(--success)' : parseFloat(classAvg) > 0 ? '#f59e0b' : 'var(--text-secondary)', suffix: '' },
+    { label: 'Taxa de Aprovação', value: passRate !== null ? String(passRate) : '—', color: passRate !== null ? (passRate >= 70 ? 'var(--success)' : '#f59e0b') : 'var(--text-secondary)', suffix: passRate !== null ? '%' : '' },
+    { label: 'Atividades', value: String(classData.activities?.length ?? 0), color: 'var(--text-secondary)', suffix: '' },
+  ]
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginTop: '16px', marginBottom: '8px' }}>
+      {stats.map(stat => (
+        <div
+          key={stat.label}
+          className="glass-panel"
+          style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: '4px' }}
+        >
+          <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{stat.label}</p>
+          <p style={{ fontSize: '1.6rem', fontWeight: 700, color: stat.color, lineHeight: 1 }}>
+            {stat.value}<span style={{ fontSize: '1rem' }}>{stat.suffix}</span>
+          </p>
+        </div>
+      ))}
     </div>
   )
 }
