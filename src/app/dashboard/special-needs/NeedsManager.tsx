@@ -33,6 +33,7 @@ export default function NeedsManager({ initialCategories, initialNeeds, initialS
   const [showCategoryManager, setShowCategoryManager] = useState(false)
   const [filterCategory, setFilterCategory] = useState('')
   const [filterClass, setFilterClass] = useState('')
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null)
 
   // Create need form
   const [newNeed, setNewNeed] = useState({ name: '', description: '', categoryId: initialCategories[0]?.id || '', color: '#6366f1', actions: '' })
@@ -55,6 +56,31 @@ export default function NeedsManager({ initialCategories, initialNeeds, initialS
       return true
     })
   }, [studentNeeds, selectedNeedId, filterCategory, filterClass])
+
+  const sortedStudentNeeds = useMemo(() => {
+    const list = [...filteredStudentNeeds]
+    if (sortConfig) {
+      list.sort((a, b) => {
+        let valA = ''
+        let valB = ''
+        if (sortConfig.key === 'Aluno') {
+          valA = a.student.name.toLowerCase()
+          valB = b.student.name.toLowerCase()
+        } else if (sortConfig.key === 'Turma') {
+          valA = `${a.enrollment.class.subject.name} ${a.enrollment.class.turmaName || ''}`.toLowerCase()
+          valB = `${b.enrollment.class.subject.name} ${b.enrollment.class.turmaName || ''}`.toLowerCase()
+        } else if (sortConfig.key === 'Necessidade') {
+          valA = a.specialNeed.name.toLowerCase()
+          valB = b.specialNeed.name.toLowerCase()
+        }
+        
+        if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1
+        if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1
+        return 0
+      })
+    }
+    return list
+  }, [filteredStudentNeeds, sortConfig])
 
   // Enrollment search (client-side from allClasses)
   const enrollmentResults = useMemo(() => {
@@ -159,9 +185,18 @@ export default function NeedsManager({ initialCategories, initialNeeds, initialS
     })
   }
 
+  const handleSort = (key: string) => {
+    if (!['Aluno', 'Turma', 'Necessidade'].includes(key)) return
+    let direction: 'asc' | 'desc' = 'asc'
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc'
+    }
+    setSortConfig({ key, direction })
+  }
+
   // ---- XLSX Export ----
   const exportXLSX = () => {
-    const rows = filteredStudentNeeds.map(sn => ({
+    const rows = sortedStudentNeeds.map(sn => ({
       'Aluno': sn.student.name,
       'RGM': sn.student.rgm || '',
       'Necessidade': sn.specialNeed.name,
@@ -296,7 +331,7 @@ export default function NeedsManager({ initialCategories, initialNeeds, initialS
               ))}
             </select>
             <span style={{ marginLeft: 'auto', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-              {filteredStudentNeeds.length} registro(s)
+              {sortedStudentNeeds.length} registro(s)
             </span>
             {selectedNeed && (
               <button
@@ -309,7 +344,7 @@ export default function NeedsManager({ initialCategories, initialNeeds, initialS
           </div>
 
           <div className="glass-panel" style={{ overflow: 'hidden' }}>
-            {filteredStudentNeeds.length === 0 ? (
+            {sortedStudentNeeds.length === 0 ? (
               <div style={{ padding: '60px 24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
                 <Users size={40} style={{ opacity: 0.2, marginBottom: '12px' }} />
                 <p style={{ marginBottom: '8px' }}>{selectedNeed ? `Nenhum aluno associado a "${selectedNeed.name}"` : 'Nenhum registro encontrado.'}</p>
@@ -323,13 +358,34 @@ export default function NeedsManager({ initialCategories, initialNeeds, initialS
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: 'rgba(0,0,0,0.2)', textAlign: 'left' }}>
-                    {['Aluno', 'Turma', 'Necessidade', 'Observações', 'Período', 'Status', ''].map(h => (
-                      <th key={h} style={{ padding: '14px 16px', color: 'var(--text-secondary)', fontWeight: 500, borderBottom: '1px solid var(--surface-border)', fontSize: '0.85rem' }}>{h}</th>
-                    ))}
+                    {['Aluno', 'Turma', 'Necessidade', 'Observações', 'Período', 'Status', ''].map(h => {
+                      const sortable = ['Aluno', 'Turma', 'Necessidade'].includes(h)
+                      return (
+                        <th 
+                          key={h} 
+                          onClick={() => sortable && handleSort(h)}
+                          style={{ 
+                            padding: '14px 16px', color: 'var(--text-secondary)', fontWeight: 500, 
+                            borderBottom: '1px solid var(--surface-border)', fontSize: '0.85rem',
+                            cursor: sortable ? 'pointer' : 'default',
+                            userSelect: 'none'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            {h}
+                            {sortable && (
+                              <span style={{ opacity: sortConfig?.key === h ? 1 : 0.3 }}>
+                                {sortConfig?.key === h && sortConfig.direction === 'desc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                      )
+                    })}
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredStudentNeeds.map((sn, i) => {
+                  {sortedStudentNeeds.map((sn, i) => {
                     const cat = getCategoryInfo(sn.specialNeed.categoryId)
                     return (
                       <tr key={sn.id} style={{ borderBottom: '1px solid var(--surface-border)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)', opacity: sn.active ? 1 : 0.5 }}>
