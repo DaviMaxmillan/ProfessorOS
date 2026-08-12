@@ -17,7 +17,7 @@ export async function getSpecialNeedsAction() {
 export async function createSpecialNeedAction(data: {
   name: string
   description?: string
-  category: string
+  categoryId: string
   color: string
   actions?: string
 }) {
@@ -35,7 +35,7 @@ export async function deleteSpecialNeedAction(id: string) {
 export async function updateSpecialNeedAction(id: string, data: {
   name?: string
   description?: string
-  category?: string
+  categoryId?: string
   color?: string
   actions?: string
 }) {

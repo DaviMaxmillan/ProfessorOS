@@ -9,41 +9,36 @@ import {
 } from '@/app/actions/specialNeeds'
 import * as XLSX from 'xlsx'
 
-const CATEGORIES = [
-  { value: 'SAUDE', label: '🔴 Saúde', color: '#ef4444' },
-  { value: 'PEDAGOGICA', label: '🟡 Pedagógica', color: '#f59e0b' },
-  { value: 'MOBILIDADE', label: '🔵 Mobilidade', color: '#3b82f6' },
-  { value: 'TRANSPORTE', label: '🚌 Transporte / Ônibus', color: '#10b981' },
-  { value: 'LEGAL', label: '⚪ Legal / Judicial', color: '#9ca3af' },
-  { value: 'OUTRO', label: '🟣 Outro', color: '#8b5cf6' },
-]
-
 const PRESET_COLORS = ['#6366f1', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4']
 
-function getCategoryInfo(val: string) {
-  return CATEGORIES.find(c => c.value === val) ?? CATEGORIES[4]
-}
-
 type Props = {
+  initialCategories: any[]
   initialNeeds: any[]
   initialStudentNeeds: any[]
   allClasses: any[]
 }
 
-export default function NeedsManager({ initialNeeds, initialStudentNeeds, allClasses }: Props) {
+export default function NeedsManager({ initialCategories, initialNeeds, initialStudentNeeds, allClasses }: Props) {
+  const [categories, setCategories] = useState(initialCategories)
   const [needs, setNeeds] = useState(initialNeeds)
   const [studentNeeds, setStudentNeeds] = useState(initialStudentNeeds)
   const [isPending, startTransition] = useTransition()
+
+  const getCategoryInfo = (catId: string) => categories.find(c => c.id === catId) ?? { name: 'Geral', color: '#9ca3af', icon: '' }
 
   // UI state
   const [selectedNeedId, setSelectedNeedId] = useState<string | null>(null)
   const [showCreateNeed, setShowCreateNeed] = useState(false)
   const [showAddStudent, setShowAddStudent] = useState(false)
+  const [showCategoryManager, setShowCategoryManager] = useState(false)
   const [filterCategory, setFilterCategory] = useState('')
   const [filterClass, setFilterClass] = useState('')
 
   // Create need form
-  const [newNeed, setNewNeed] = useState({ name: '', description: '', category: 'PEDAGOGICA', color: '#6366f1', actions: '' })
+  const [newNeed, setNewNeed] = useState({ name: '', description: '', categoryId: initialCategories[0]?.id || '', color: '#6366f1', actions: '' })
+  
+  // Category manager form
+  const [newCat, setNewCat] = useState({ name: '', color: '#ef4444', icon: '' })
 
   // Add student form
   const [addForm, setAddForm] = useState({ enrollmentId: '', notes: '', startDate: '', endDate: '' })
@@ -55,7 +50,7 @@ export default function NeedsManager({ initialNeeds, initialStudentNeeds, allCla
   const filteredStudentNeeds = useMemo(() => {
     return studentNeeds.filter(sn => {
       if (selectedNeedId && sn.specialNeedId !== selectedNeedId) return false
-      if (filterCategory && sn.specialNeed.category !== filterCategory) return false
+      if (filterCategory && sn.specialNeed.categoryId !== filterCategory) return false
       if (filterClass && sn.enrollment.classId !== filterClass) return false
       return true
     })
@@ -82,10 +77,36 @@ export default function NeedsManager({ initialNeeds, initialStudentNeeds, allCla
     startTransition(async () => {
       const res = await createSpecialNeedAction(newNeed)
       if (res.success) {
-        // Optimistic UI: reload from server on next render; for now just reset form
         setShowCreateNeed(false)
-        setNewNeed({ name: '', description: '', category: 'PEDAGOGICA', color: '#6366f1', actions: '' })
+        setNewNeed({ name: '', description: '', categoryId: categories[0]?.id || '', color: '#6366f1', actions: '' })
         window.location.reload()
+      }
+    })
+  }
+
+  const handleCreateCategory = async () => {
+    if (!newCat.name.trim()) return
+    startTransition(async () => {
+      const { createSpecialNeedCategoryAction } = await import('@/app/actions/specialNeedCategories')
+      const res = await createSpecialNeedCategoryAction(newCat)
+      if (res.success) {
+        setCategories(prev => [...prev, res.category])
+        setNewCat({ name: '', color: '#ef4444', icon: '' })
+      } else {
+        alert(res.message)
+      }
+    })
+  }
+
+  const handleDeleteCategory = async (id: string) => {
+    if (!confirm('Excluir esta categoria? Necessidades associadas ficarão "Gerais".')) return
+    startTransition(async () => {
+      const { deleteSpecialNeedCategoryAction } = await import('@/app/actions/specialNeedCategories')
+      const res = await deleteSpecialNeedCategoryAction(id)
+      if (res.success) {
+        setCategories(prev => prev.filter(c => c.id !== id))
+      } else {
+        alert(res.message)
       }
     })
   }
@@ -144,7 +165,7 @@ export default function NeedsManager({ initialNeeds, initialStudentNeeds, allCla
       'Aluno': sn.student.name,
       'RGM': sn.student.rgm || '',
       'Necessidade': sn.specialNeed.name,
-      'Categoria': getCategoryInfo(sn.specialNeed.category).label.replace(/^..\s/, ''),
+      'Categoria': getCategoryInfo(sn.specialNeed.categoryId)?.name || 'Geral',
       'Turma': `${sn.enrollment.class.subject.name}${sn.enrollment.class.turmaName ? ` — ${sn.enrollment.class.turmaName}` : ''}`,
       'Semestre': sn.enrollment.class.semester.name,
       'Observações': sn.notes || '',
@@ -177,6 +198,9 @@ export default function NeedsManager({ initialNeeds, initialStudentNeeds, allCla
           <button onClick={handlePrint} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'rgba(255,255,255,0.08)', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem' }}>
             <Printer size={16} /> PDF
           </button>
+          <button onClick={() => setShowCategoryManager(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'rgba(255,255,255,0.08)', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem' }}>
+            <Filter size={16} /> Categorias
+          </button>
           <button onClick={() => setShowCreateNeed(true)} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Plus size={18} /> Nova Necessidade
           </button>
@@ -201,7 +225,7 @@ export default function NeedsManager({ initialNeeds, initialStudentNeeds, allCla
           </button>
 
           {needs.map(need => {
-            const cat = getCategoryInfo(need.category)
+            const cat = getCategoryInfo(need.categoryId)
             const isSelected = selectedNeedId === need.id
             return (
               <div key={need.id} style={{ position: 'relative' }}>
@@ -219,7 +243,7 @@ export default function NeedsManager({ initialNeeds, initialStudentNeeds, allCla
                     <span style={{ fontWeight: 600, fontSize: '0.92rem', color: 'var(--text-primary)' }}>{need.name}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.75rem', color: cat.color }}>{cat.label}</span>
+                    <span style={{ fontSize: '0.75rem', color: cat.color }}>{cat.icon} {cat.name}</span>
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{need._count.studentNeeds} alunos</span>
                   </div>
                 </button>
@@ -259,7 +283,7 @@ export default function NeedsManager({ initialNeeds, initialStudentNeeds, allCla
               style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', borderRadius: '8px', padding: '6px 10px', fontSize: '0.85rem', cursor: 'pointer' }}
             >
               <option value="">Todas as categorias</option>
-              {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+              {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
             </select>
             <select
               value={filterClass}
@@ -306,7 +330,7 @@ export default function NeedsManager({ initialNeeds, initialStudentNeeds, allCla
                 </thead>
                 <tbody>
                   {filteredStudentNeeds.map((sn, i) => {
-                    const cat = getCategoryInfo(sn.specialNeed.category)
+                    const cat = getCategoryInfo(sn.specialNeed.categoryId)
                     return (
                       <tr key={sn.id} style={{ borderBottom: '1px solid var(--surface-border)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)', opacity: sn.active ? 1 : 0.5 }}>
                         <td style={{ padding: '14px 16px' }}>
@@ -321,7 +345,7 @@ export default function NeedsManager({ initialNeeds, initialStudentNeeds, allCla
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: `${sn.specialNeed.color}20`, border: `1px solid ${sn.specialNeed.color}40`, borderRadius: '8px', padding: '3px 8px', fontSize: '0.8rem', color: sn.specialNeed.color, fontWeight: 600 }}>
                             {sn.specialNeed.name}
                           </span>
-                          <p style={{ fontSize: '0.72rem', color: cat.color, marginTop: '3px' }}>{cat.label}</p>
+                          <p style={{ fontSize: '0.72rem', color: cat.color, marginTop: '3px' }}>{cat.icon} {cat.name}</p>
                         </td>
                         <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '180px' }}>
                           {sn.notes || <span style={{ opacity: 0.4 }}>—</span>}
@@ -369,8 +393,8 @@ export default function NeedsManager({ initialNeeds, initialStudentNeeds, allCla
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Categoria</label>
-                <select className="glass-input" value={newNeed.category} onChange={e => setNewNeed(p => ({ ...p, category: e.target.value }))}>
-                  {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                <select className="glass-input" value={newNeed.categoryId} onChange={e => setNewNeed(p => ({ ...p, categoryId: e.target.value }))}>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
                 </select>
               </div>
               <div>
@@ -459,6 +483,57 @@ export default function NeedsManager({ initialNeeds, initialStudentNeeds, allCla
               <button onClick={() => { setShowAddStudent(false); setEnrollmentSearch(''); }} style={{ padding: '10px 18px', background: 'transparent', border: '1px solid var(--surface-border)', color: 'var(--text-secondary)', borderRadius: '8px', cursor: 'pointer' }}>Cancelar</button>
               <button onClick={handleAddStudent} disabled={isPending || !addForm.enrollmentId} className="btn-primary">
                 {isPending ? 'Adicionando...' : 'Adicionar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Category Manager */}
+      {showCategoryManager && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '520px', padding: '32px', animation: 'slideDown 0.2s ease', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 600 }}>Gerenciar Categorias</h2>
+              <button onClick={() => setShowCategoryManager(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}><X size={20} /></button>
+            </div>
+
+            <div style={{ overflowY: 'auto', flex: 1, paddingRight: '4px', marginBottom: '16px' }}>
+              {categories.length === 0 ? <p style={{color: 'var(--text-secondary)'}}>Sem categorias cadastradas.</p> : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {categories.map(c => (
+                    <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: `1px solid ${c.color}30` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '1.2rem' }}>{c.icon}</span>
+                        <span style={{ fontWeight: 500, color: c.color }}>{c.name}</span>
+                      </div>
+                      <button onClick={() => handleDeleteCategory(c.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px' }}>
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={{ padding: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '12px', border: '1px solid var(--surface-border)' }}>
+              <h3 style={{ fontSize: '0.95rem', marginBottom: '12px', fontWeight: 600 }}>Nova Categoria</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '50px 1fr 40px', gap: '8px', alignItems: 'end' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Ícone</label>
+                  <input className="glass-input" style={{ textAlign: 'center', padding: '8px 4px' }} value={newCat.icon} onChange={e => setNewCat(p => ({ ...p, icon: e.target.value }))} placeholder="🚌" />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Nome da categoria</label>
+                  <input className="glass-input" style={{ padding: '8px 12px' }} value={newCat.name} onChange={e => setNewCat(p => ({ ...p, name: e.target.value }))} placeholder="Ex: Psicológica" />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px', textAlign: 'center' }}>Cor</label>
+                  <input type="color" value={newCat.color} onChange={e => setNewCat(p => ({ ...p, color: e.target.value }))} style={{ width: '40px', height: '36px', padding: '0', border: 'none', cursor: 'pointer', background: 'transparent' }} />
+                </div>
+              </div>
+              <button onClick={handleCreateCategory} disabled={isPending || !newCat.name.trim()} className="btn-primary" style={{ width: '100%', marginTop: '12px', padding: '10px' }}>
+                {isPending ? 'Salvando...' : 'Adicionar Categoria'}
               </button>
             </div>
           </div>

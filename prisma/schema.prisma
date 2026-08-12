@@ -184,11 +184,28 @@ model ClassNote {
   class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
 }
 
+model SpecialNeedCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  color     String   @default("#6366f1")
+  icon      String?  
+  createdAt DateTime @default(now())
+
+  specialNeeds SpecialNeed[]
+}
+
 model SpecialNeed {
   id          String   @id @default(cuid())
   name        String   // Ex: "Saída Antecipada", "Afastamento Médico"
   description String?  // Descrição geral da necessidade
+  
+  // Antigo campo string (mantido por segurança de dados)
   category    String   @default("PEDAGOGICA") // "SAUDE", "PEDAGOGICA", "MOBILIDADE", "LEGAL", "OUTRO"
+  
+  // Novo relacionamento dinâmico
+  categoryId  String?
+  categoryRef SpecialNeedCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
   color       String   @default("#6366f1") // Cor para identificação visual
   actions     String?  // Ações necessárias (texto livre)
   createdAt   DateTime @default(now())
