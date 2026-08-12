@@ -250,14 +250,14 @@ export default function NeedsManager({ initialCategories, initialNeeds, initialS
                 <button
                   onClick={(e) => { e.stopPropagation(); handleDeleteNeed(need.id); }}
                   style={{ 
-                    position: 'absolute', top: '50%', right: '12px', transform: 'translateY(-50%)', 
-                    background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', 
-                    color: '#ef4444', cursor: 'pointer', padding: '6px', borderRadius: '6px',
+                    position: 'absolute', top: '8px', right: '8px', 
+                    background: 'none', border: 'none', 
+                    color: '#ef4444', cursor: 'pointer', padding: '4px',
                     display: 'flex', alignItems: 'center', justifyContent: 'center'
                   }}
                   title="Excluir necessidade"
                 >
-                  <Trash2 size={16} />
+                  <X size={16} />
                 </button>
               </div>
             )
