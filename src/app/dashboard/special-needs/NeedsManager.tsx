@@ -13,6 +13,7 @@ const CATEGORIES = [
   { value: 'SAUDE', label: '🔴 Saúde', color: '#ef4444' },
   { value: 'PEDAGOGICA', label: '🟡 Pedagógica', color: '#f59e0b' },
   { value: 'MOBILIDADE', label: '🔵 Mobilidade', color: '#3b82f6' },
+  { value: 'TRANSPORTE', label: '🚌 Transporte / Ônibus', color: '#10b981' },
   { value: 'LEGAL', label: '⚪ Legal / Judicial', color: '#9ca3af' },
   { value: 'OUTRO', label: '🟣 Outro', color: '#8b5cf6' },
 ]
