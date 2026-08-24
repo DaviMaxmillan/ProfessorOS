@@ -3,8 +3,11 @@
 import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/prisma'
 import { isHoliday } from '@/lib/holidays'
+import { requireAuth } from '@/lib/auth'
 
 export async function generateScheduleAction(classId: string, startDateStr: string, endDateStr: string, daysOfWeekStr: string) {
+  await requireAuth()
+
   try {
     // Fix timezone offset by forcing noon UTC
     const startDate = new Date(startDateStr.includes('T') ? startDateStr : `${startDateStr}T12:00:00Z`)
@@ -66,6 +69,8 @@ export async function updateScheduleEntryAction(
   entryId: string, 
   data: { content: string; notes: string; rowColor: string | null; driveLink: string | null }
 ) {
+  await requireAuth()
+
   try {
     await prisma.scheduleEntry.update({
       where: { id: entryId },
@@ -84,6 +89,8 @@ export async function updateScheduleEntryAction(
 }
 
 export async function addSingleScheduleEntryAction(classId: string, dateStr: string) {
+  await requireAuth()
+
   try {
     const date = new Date(dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00Z`)
     if (isNaN(date.getTime())) return { success: false, message: 'Data inválida' }
@@ -108,6 +115,8 @@ export async function addSingleScheduleEntryAction(classId: string, dateStr: str
 }
 
 export async function deleteScheduleEntryAction(entryId: string) {
+  await requireAuth()
+
   try {
     await prisma.scheduleEntry.delete({ where: { id: entryId } })
     revalidatePath('/dashboard/classes/[id]', 'page')
@@ -118,6 +127,8 @@ export async function deleteScheduleEntryAction(entryId: string) {
 }
 
 export async function copyScheduleEntryAction(sourceEntryId: string, targetEntryId: string) {
+  await requireAuth()
+
   try {
     const source = await prisma.scheduleEntry.findUnique({ where: { id: sourceEntryId } })
     if (!source) return { success: false, message: 'Aula de origem não encontrada.' }
@@ -143,6 +154,8 @@ export async function mirrorSchedulePlanAction(
   targetClassId: string,
   overwrite: boolean
 ) {
+  await requireAuth()
+
   try {
     const [sourceEntries, targetEntries] = await Promise.all([
       prisma.scheduleEntry.findMany({

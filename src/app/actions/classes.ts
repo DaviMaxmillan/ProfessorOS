@@ -2,8 +2,11 @@
 
 import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/prisma'
+import { requireAuth } from '@/lib/auth'
 
 export async function createInstitutionAction(formData: FormData) {
+  await requireAuth()
+
   try {
     const name = formData.get('name') as string
     if (!name?.trim()) return { success: false, message: 'Nome da instituição é obrigatório.' }
@@ -18,6 +21,8 @@ export async function createInstitutionAction(formData: FormData) {
 }
 
 export async function updateInstitutionAction(institutionId: string, formData: FormData) {
+  await requireAuth()
+
   try {
     const name = formData.get('name') as string
     if (!name?.trim()) return { success: false, message: 'Nome da instituição é obrigatório.' }
@@ -30,6 +35,8 @@ export async function updateInstitutionAction(institutionId: string, formData: F
 }
 
 export async function deleteInstitutionAction(institutionId: string) {
+  await requireAuth()
+
   try {
     // Desvincula as turmas antes de excluir
     await prisma.class.updateMany({ where: { institutionId }, data: { institutionId: null } })
@@ -42,6 +49,8 @@ export async function deleteInstitutionAction(institutionId: string) {
 }
 
 export async function createSemesterAction(name: string) {
+  await requireAuth()
+
   try {
     if (!name?.trim()) return { success: false, message: 'Nome do semestre é obrigatório.', semesterId: null }
     let semester = await prisma.semester.findFirst({ where: { name: name.trim() } })
@@ -58,6 +67,8 @@ export async function createSemesterAction(name: string) {
 
 
 export async function createClassAction(formData: FormData) {
+  await requireAuth()
+
   try {
     const institutionName = formData.get('institutionName') as string
     const semesterName = formData.get('semesterName') as string
@@ -113,6 +124,8 @@ export async function createClassAction(formData: FormData) {
 }
 
 export async function deleteClassAction(classId: string) {
+  await requireAuth()
+
   try {
     await prisma.class.delete({
       where: { id: classId }
@@ -126,6 +139,8 @@ export async function deleteClassAction(classId: string) {
 }
 
 export async function updateClassAction(classId: string, formData: FormData) {
+  await requireAuth()
+
   try {
     const institutionName = formData.get('institutionName') as string
     const semesterName = formData.get('semesterName') as string
@@ -177,6 +192,8 @@ export async function updateClassAction(classId: string, formData: FormData) {
 }
 
 export async function updateClassOrderAction(orderedIds: string[]) {
+  await requireAuth()
+
   try {
     const transactions = orderedIds.map((id, index) => 
       prisma.class.update({

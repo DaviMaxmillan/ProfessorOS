@@ -3,8 +3,11 @@ export const dynamic = 'force-dynamic'
 import prisma from '@/lib/prisma'
 import NeedsManager from './NeedsManager'
 import { ensureSpecialNeedCategoriesMigratedAction } from '@/app/actions/specialNeedCategories'
+import { requireAuth } from '@/lib/auth'
 
 export default async function SpecialNeedsPage() {
+  await requireAuth()
+
   await ensureSpecialNeedCategoriesMigratedAction()
 
   const [categories, specialNeeds, studentNeeds, allClasses] = await Promise.all([

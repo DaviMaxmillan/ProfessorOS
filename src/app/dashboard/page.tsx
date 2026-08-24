@@ -3,8 +3,11 @@ export const dynamic = 'force-dynamic'
 import prisma from '@/lib/prisma'
 import { BookOpen, Users, Calendar, AlertTriangle, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
+import { requireAuth } from '@/lib/auth'
 
 export default async function DashboardPage() {
+  await requireAuth()
+
   const [totalStudents, totalClasses, totalSemesters, recentClasses, allEnrollments] = await Promise.all([
     prisma.student.count({ where: { enrollments: { some: {} } } }),
     prisma.class.count(),

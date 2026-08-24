@@ -4,8 +4,11 @@ import prisma from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, BookOpen, GraduationCap } from 'lucide-react'
+import { requireAuth } from '@/lib/auth'
 
 export default async function StudentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireAuth()
+
   const { id } = await params
   
   const student = await prisma.student.findUnique({

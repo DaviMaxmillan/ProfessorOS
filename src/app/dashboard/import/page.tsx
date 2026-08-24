@@ -3,8 +3,11 @@ export const dynamic = 'force-dynamic'
 import prisma from '@/lib/prisma'
 import ImportForm from './ImportForm'
 import Link from 'next/link'
+import { requireAuth } from '@/lib/auth'
 
 export default async function ImportPage() {
+  await requireAuth()
+
   const classes = await prisma.class.findMany({
     include: {
       institution: true,

@@ -2,8 +2,11 @@
 
 import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/prisma'
+import { requireAuth } from '@/lib/auth'
 
 export async function saveProvisionalAttendanceAction(classId: string, date: string, attendanceData: Record<string, boolean>) {
+  await requireAuth()
+
   try {
     const targetDate = new Date(date)
 
@@ -38,6 +41,8 @@ export async function saveProvisionalAttendanceAction(classId: string, date: str
 }
 
 export async function createActivityAction(formData: FormData) {
+  await requireAuth()
+
   try {
     const classId = formData.get('classId') as string
     const name = formData.get('name') as string
@@ -61,6 +66,8 @@ export async function createActivityAction(formData: FormData) {
 }
 
 export async function saveGradesAction(classId: string, activityId: string, gradesData: Record<string, number>) {
+  await requireAuth()
+
   try {
     const promises = Object.entries(gradesData).map(async ([enrollmentId, value]) => {
       await prisma.grade.upsert({
@@ -82,6 +89,8 @@ export async function saveGradesAction(classId: string, activityId: string, grad
 
 
 export async function updateClassCalculationMethod(classId: string, method: string) {
+  await requireAuth()
+
   try {
     await prisma.class.update({
       where: { id: classId },
@@ -95,6 +104,8 @@ export async function updateClassCalculationMethod(classId: string, method: stri
 }
 
 export async function deleteActivityAction(classId: string, activityId: string) {
+  await requireAuth()
+
   try {
     await prisma.activity.delete({
       where: { id: activityId }
@@ -107,6 +118,8 @@ export async function deleteActivityAction(classId: string, activityId: string) 
 }
 
 export async function updateStudentNameAction(studentId: string, newName: string) {
+  await requireAuth()
+
   try {
     await prisma.student.update({
       where: { id: studentId },
@@ -120,6 +133,8 @@ export async function updateStudentNameAction(studentId: string, newName: string
 }
 
 export async function saveEnrollmentNotesAction(enrollmentId: string, notes: string) {
+  await requireAuth()
+
   try {
     await prisma.enrollment.update({
       where: { id: enrollmentId },
@@ -133,6 +148,8 @@ export async function saveEnrollmentNotesAction(enrollmentId: string, notes: str
 }
 
 export async function updateEnrollmentStatusAction(enrollmentId: string, status: string) {
+  await requireAuth()
+
   try {
     await prisma.enrollment.update({
       where: { id: enrollmentId },

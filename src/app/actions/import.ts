@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import * as xlsx from 'xlsx'
 import prisma from '@/lib/prisma'
+import { requireAuth } from '@/lib/auth'
 
 export type ImportResult = {
   success: boolean;
@@ -27,6 +28,8 @@ function parseExcelDate(value: any): Date | undefined {
 }
 
 export async function importExcelAction(formData: FormData): Promise<ImportResult> {
+  await requireAuth()
+
   try {
     const classId = formData.get('classId') as string
     const file = formData.get('file') as File

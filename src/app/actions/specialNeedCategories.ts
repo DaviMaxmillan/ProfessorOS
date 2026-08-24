@@ -2,8 +2,11 @@
 
 import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { requireAuth } from '@/lib/auth'
 
 export async function createSpecialNeedCategoryAction(data: { name: string, color: string, icon?: string }) {
+  await requireAuth()
+
   try {
     const cat = await prisma.specialNeedCategory.create({
       data: {
@@ -21,6 +24,8 @@ export async function createSpecialNeedCategoryAction(data: { name: string, colo
 }
 
 export async function deleteSpecialNeedCategoryAction(id: string) {
+  await requireAuth()
+
   try {
     await prisma.specialNeedCategory.delete({
       where: { id }
@@ -34,6 +39,8 @@ export async function deleteSpecialNeedCategoryAction(id: string) {
 }
 
 export async function ensureSpecialNeedCategoriesMigratedAction() {
+  await requireAuth()
+
   try {
     const hardcoded = [
       { name: 'Saúde', color: '#ef4444', value: 'SAUDE', icon: '🔴' },

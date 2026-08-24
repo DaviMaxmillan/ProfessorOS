@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/prisma'
+import { requireAuth } from '@/lib/auth'
 
 export async function createNoteAction(classId: string, data: {
   title?: string
@@ -10,6 +11,8 @@ export async function createNoteAction(classId: string, data: {
   label?: string
   fontSize?: number
 }) {
+  await requireAuth()
+
   try {
     await prisma.classNote.create({
       data: {
@@ -36,6 +39,8 @@ export async function updateNoteAction(noteId: string, data: {
   fontSize?: number
   pinned?: boolean
 }) {
+  await requireAuth()
+
   try {
     await prisma.classNote.update({
       where: { id: noteId },
@@ -56,6 +61,8 @@ export async function updateNoteAction(noteId: string, data: {
 }
 
 export async function deleteNoteAction(noteId: string) {
+  await requireAuth()
+
   try {
     await prisma.classNote.delete({ where: { id: noteId } })
     revalidatePath('/dashboard/classes/[id]', 'page')

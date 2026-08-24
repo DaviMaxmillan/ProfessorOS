@@ -5,8 +5,11 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronRight, ArrowLeft, Calendar } from 'lucide-react'
 import CreateSemesterButton from '../../CreateSemesterButton'
+import { requireAuth } from '@/lib/auth'
 
 export default async function InstitutionPage({ params }: { params: Promise<{ institutionId: string }> }) {
+  await requireAuth()
+
   const { institutionId } = await params
 
   let institutionName = 'Sem Instituição'

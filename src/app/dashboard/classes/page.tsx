@@ -4,8 +4,11 @@ import prisma from '@/lib/prisma'
 import { Building2 } from 'lucide-react'
 import CreateInstitutionButton from './CreateInstitutionButton'
 import InstitutionCard from './InstitutionCard'
+import { requireAuth } from '@/lib/auth'
 
 export default async function ClassesPage() {
+  await requireAuth()
+
   const institutions = await prisma.institution.findMany({
     include: {
       _count: { select: { classes: true } }

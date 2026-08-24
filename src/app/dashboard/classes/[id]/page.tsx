@@ -6,8 +6,11 @@ import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import ClassTabs from './ClassTabs'
 import ClassHeader from './ClassHeader'
+import { requireAuth } from '@/lib/auth'
 
 export default async function ClassDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireAuth()
+
   const { id } = await params
   
   const classData = await prisma.class.findUnique({

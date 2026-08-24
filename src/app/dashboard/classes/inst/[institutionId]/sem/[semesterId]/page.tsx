@@ -6,12 +6,15 @@ import { notFound } from 'next/navigation'
 import { ChevronRight, ArrowLeft, BookOpen, Users, Clock } from 'lucide-react'
 import CreateClassForm from '../../../../CreateClassForm'
 import ClassSortableList from '../../../../ClassSortableList'
+import { requireAuth } from '@/lib/auth'
 
 export default async function SemesterClassesPage({
   params
 }: {
   params: Promise<{ institutionId: string; semesterId: string }>
 }) {
+  await requireAuth()
+
   const { institutionId, semesterId } = await params
 
   const [semester, semesters, institutions] = await Promise.all([

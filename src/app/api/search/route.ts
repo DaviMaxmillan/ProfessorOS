@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { isAuthenticated } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
+  // Segunda linha de defesa: o proxy já barra requisições sem sessão, mas a
+  // rota expõe nome e RGM de alunos e valida por conta própria.
+  if (!(await isAuthenticated())) {
+    return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 })
+  }
+
   const q = request.nextUrl.searchParams.get('q')?.trim() ?? ''
 
   if (!q || q.length < 2) {
@@ -12,8 +19,8 @@ export async function GET(request: NextRequest) {
     prisma.student.findMany({
       where: {
         OR: [
-          { name: { contains: q } },
-          { rgm: { contains: q } },
+          { name: { contains: q, mode: 'insensitive' } },
+          { rgm: { contains: q, mode: 'insensitive' } },
         ]
       },
       take: 5,
@@ -21,8 +28,8 @@ export async function GET(request: NextRequest) {
     prisma.class.findMany({
       where: {
         OR: [
-          { subject: { name: { contains: q } } },
-          { turmaName: { contains: q } },
+          { subject: { name: { contains: q, mode: 'insensitive' } } },
+          { turmaName: { contains: q, mode: 'insensitive' } },
         ]
       },
       include: { semester: true, subject: true },

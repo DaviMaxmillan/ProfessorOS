@@ -2,8 +2,11 @@
 
 import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/prisma'
+import { requireAuth } from '@/lib/auth'
 
 export async function createGroupWorkAction(classId: string, name: string, description: string, weight: number, createActivity: boolean) {
+  await requireAuth()
+
   try {
     let activityId = null
     
@@ -36,6 +39,8 @@ export async function createGroupWorkAction(classId: string, name: string, descr
 }
 
 export async function updateGroupWorkAction(groupWorkId: string, name: string, description: string, weight: number) {
+  await requireAuth()
+
   try {
     const gw = await prisma.groupWork.findUnique({ where: { id: groupWorkId }, include: { activity: true } })
     if (!gw) return { success: false, message: 'Trabalho não encontrado' }
@@ -60,6 +65,8 @@ export async function updateGroupWorkAction(groupWorkId: string, name: string, d
 }
 
 export async function deleteGroupWorkAction(groupWorkId: string) {
+  await requireAuth()
+
   try {
     const gw = await prisma.groupWork.findUnique({ where: { id: groupWorkId } })
     if (gw?.activityId) {
@@ -77,6 +84,8 @@ export async function deleteGroupWorkAction(groupWorkId: string) {
 }
 
 export async function createGroupAction(groupWorkId: string, name: string, theme: string) {
+  await requireAuth()
+
   try {
     await prisma.group.create({
       data: {
@@ -93,6 +102,8 @@ export async function createGroupAction(groupWorkId: string, name: string, theme
 }
 
 export async function updateGroupAction(groupId: string, name: string, theme: string) {
+  await requireAuth()
+
   try {
     await prisma.group.update({
       where: { id: groupId },
@@ -106,6 +117,8 @@ export async function updateGroupAction(groupId: string, name: string, theme: st
 }
 
 export async function deleteGroupAction(groupId: string) {
+  await requireAuth()
+
   try {
     await prisma.group.delete({ where: { id: groupId } })
     revalidatePath('/dashboard/classes/[id]', 'page')
@@ -116,6 +129,8 @@ export async function deleteGroupAction(groupId: string) {
 }
 
 export async function addMemberToGroupAction(groupId: string, enrollmentId: string) {
+  await requireAuth()
+
   try {
     await prisma.groupMember.create({
       data: {
@@ -131,6 +146,8 @@ export async function addMemberToGroupAction(groupId: string, enrollmentId: stri
 }
 
 export async function removeMemberFromGroupAction(memberId: string) {
+  await requireAuth()
+
   try {
     await prisma.groupMember.delete({ where: { id: memberId } })
     revalidatePath('/dashboard/classes/[id]', 'page')
@@ -142,6 +159,8 @@ export async function removeMemberFromGroupAction(memberId: string) {
 
 // Action to grade an entire group at once
 export async function gradeGroupAction(groupId: string, gradeValue: number, notes: string) {
+  await requireAuth()
+
   try {
     const group = await prisma.group.findUnique({
       where: { id: groupId },
@@ -191,6 +210,8 @@ export async function gradeGroupAction(groupId: string, gradeValue: number, note
 
 // Action to generate random groups
 export async function generateRandomGroupsAction(groupWorkId: string, groupCount: number, availableEnrollmentIds: string[]) {
+  await requireAuth()
+
   try {
     if (groupCount <= 0 || availableEnrollmentIds.length === 0) {
       return { success: false, message: 'Quantidade inválida ou sem alunos.' }
