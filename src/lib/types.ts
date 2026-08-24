@@ -96,3 +96,84 @@ export type ClassSummary = Prisma.ClassGetPayload<{
 
 /** Como a turma calcula a média final. */
 export type CalculationMethod = 'SUM' | 'AVERAGE'
+
+/** Campos editáveis de um recado da turma. */
+export type NoteInput = {
+  title?: string
+  content?: string
+  color?: string
+  label?: string
+  fontSize?: number
+  pinned?: boolean
+}
+
+/** Campos obrigatórios ao criar um recado. */
+export type NoteCreateInput = NoteInput & { content: string }
+
+/** O `include` das matrículas carregadas no painel inicial. */
+export const enrollmentWithClassInclude = Prisma.validator<Prisma.EnrollmentInclude>()({
+  student: true,
+  grades: true,
+  class: { include: { subject: true, semester: true, scheduleEntries: true } },
+} satisfies Prisma.EnrollmentInclude)
+
+/** Matrícula com aluno, notas e a turma — as linhas do painel inicial. */
+export type EnrollmentWithClass = Prisma.EnrollmentGetPayload<{
+  include: typeof enrollmentWithClassInclude
+}>
+
+// ---- Acompanhamento de necessidades especiais ----
+
+/** Necessidade especial com a categoria e a contagem de alunos vinculados. */
+export const specialNeedInclude = Prisma.validator<Prisma.SpecialNeedInclude>()({
+  _count: { select: { studentNeeds: true } },
+  categoryRef: true,
+} satisfies Prisma.SpecialNeedInclude)
+
+export type SpecialNeedDetail = Prisma.SpecialNeedGetPayload<{
+  include: typeof specialNeedInclude
+}>
+
+/** Vínculo aluno <-> necessidade, com a turma em que ele vale. */
+export const studentSpecialNeedInclude = Prisma.validator<Prisma.StudentSpecialNeedInclude>()({
+  student: true,
+  specialNeed: { include: { categoryRef: true } },
+  enrollment: {
+    include: {
+      class: { include: { subject: true, semester: true } },
+    },
+  },
+} satisfies Prisma.StudentSpecialNeedInclude)
+
+export type StudentSpecialNeedDetail = Prisma.StudentSpecialNeedGetPayload<{
+  include: typeof studentSpecialNeedInclude
+}>
+
+/** Turma com os alunos matriculados, usada na busca de matrícula. */
+export const classWithStudentsInclude = Prisma.validator<Prisma.ClassInclude>()({
+  subject: true,
+  semester: true,
+  enrollments: { include: { student: true } },
+} satisfies Prisma.ClassInclude)
+
+export type ClassWithStudents = Prisma.ClassGetPayload<{
+  include: typeof classWithStudentsInclude
+}>
+
+/** Uma matrícula encontrada na busca, já com a turma a que pertence. */
+export type EnrollmentSearchResult =
+  ClassWithStudents['enrollments'][number] & { class: ClassWithStudents }
+
+/** Categoria de necessidade especial. */
+export type SpecialNeedCategory = Prisma.SpecialNeedCategoryGetPayload<object>
+
+/** O `include` das turmas da lista ordenável por arrastar. */
+export const classSortableInclude = Prisma.validator<Prisma.ClassInclude>()({
+  subject: true,
+  _count: { select: { enrollments: true } },
+} satisfies Prisma.ClassInclude)
+
+/** Turma como aparece na lista ordenável. */
+export type ClassSortable = Prisma.ClassGetPayload<{
+  include: typeof classSortableInclude
+}>

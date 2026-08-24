@@ -8,14 +8,21 @@ import {
   toggleStudentNeedActiveAction
 } from '@/app/actions/specialNeeds'
 import * as XLSX from 'xlsx'
+import type {
+  ClassWithStudents,
+  EnrollmentSearchResult,
+  SpecialNeedCategory,
+  SpecialNeedDetail,
+  StudentSpecialNeedDetail,
+} from '@/lib/types'
 
 const PRESET_COLORS = ['#6366f1', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4']
 
 type Props = {
-  initialCategories: any[]
-  initialNeeds: any[]
-  initialStudentNeeds: any[]
-  allClasses: any[]
+  initialCategories: SpecialNeedCategory[]
+  initialNeeds: SpecialNeedDetail[]
+  initialStudentNeeds: StudentSpecialNeedDetail[]
+  allClasses: ClassWithStudents[]
 }
 
 export default function NeedsManager({ initialCategories, initialNeeds, initialStudentNeeds, allClasses }: Props) {
@@ -24,7 +31,8 @@ export default function NeedsManager({ initialCategories, initialNeeds, initialS
   const [studentNeeds, setStudentNeeds] = useState(initialStudentNeeds)
   const [isPending, startTransition] = useTransition()
 
-  const getCategoryInfo = (catId: string) => categories.find(c => c.id === catId) ?? { name: 'Geral', color: '#9ca3af', icon: '' }
+  const getCategoryInfo = (catId: string | null) =>
+    categories.find(c => c.id === catId) ?? { name: 'Geral', color: '#9ca3af', icon: '' }
 
   // UI state
   const [selectedNeedId, setSelectedNeedId] = useState<string | null>(null)
@@ -86,9 +94,9 @@ export default function NeedsManager({ initialCategories, initialNeeds, initialS
   const enrollmentResults = useMemo(() => {
     if (!enrollmentSearch.trim() || enrollmentSearch.length < 2) return []
     const q = enrollmentSearch.toLowerCase()
-    const results: any[] = []
+    const results: EnrollmentSearchResult[] = []
     allClasses.forEach(cls => {
-      cls.enrollments.forEach((enr: any) => {
+      cls.enrollments.forEach((enr) => {
         if (enr.student.name.toLowerCase().includes(q) || (enr.student.rgm && enr.student.rgm.includes(q))) {
           results.push({ ...enr, class: cls })
         }
@@ -115,7 +123,7 @@ export default function NeedsManager({ initialCategories, initialNeeds, initialS
     startTransition(async () => {
       const { createSpecialNeedCategoryAction } = await import('@/app/actions/specialNeedCategories')
       const res = await createSpecialNeedCategoryAction(newCat)
-      if (res.success) {
+      if (res.success && res.category) {
         setCategories(prev => [...prev, res.category])
         setNewCat({ name: '', color: '#ef4444', icon: '' })
       } else {
@@ -149,7 +157,7 @@ export default function NeedsManager({ initialCategories, initialNeeds, initialS
 
   const handleAddStudent = () => {
     if (!addForm.enrollmentId || !selectedNeedId) return
-    const enr = allClasses.flatMap(c => c.enrollments.map((e: any) => ({ ...e, class: c }))).find((e: any) => e.id === addForm.enrollmentId)
+    const enr = allClasses.flatMap(c => c.enrollments.map((e) => ({ ...e, class: c }))).find((e) => e.id === addForm.enrollmentId)
     if (!enr) return
     startTransition(async () => {
       const res = await addStudentNeedAction({
@@ -302,7 +310,7 @@ export default function NeedsManager({ initialCategories, initialNeeds, initialS
             <div className="glass-panel" style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
               <HeartHandshake size={32} style={{ opacity: 0.3, marginBottom: '8px' }} />
               <p>Nenhuma necessidade cadastrada.</p>
-              <p>Clique em "Nova Necessidade" para começar.</p>
+              <p>Clique em “Nova Necessidade” para começar.</p>
             </div>
           )}
         </div>
@@ -504,7 +512,7 @@ export default function NeedsManager({ initialCategories, initialNeeds, initialS
                 />
                 {enrollmentResults.length > 0 && !addForm.enrollmentId && (
                   <div style={{ border: '1px solid var(--surface-border)', borderRadius: '8px', marginTop: '6px', overflow: 'hidden', maxHeight: '200px', overflowY: 'auto' }}>
-                    {enrollmentResults.map((enr: any) => (
+                    {enrollmentResults.map((enr) => (
                       <button key={enr.id} onClick={() => { setAddForm(p => ({ ...p, enrollmentId: enr.id })); setEnrollmentSearch(`${enr.student.name} — ${enr.class.subject.name}${enr.class.turmaName ? ` ${enr.class.turmaName}` : ''}`) }} style={{ width: '100%', padding: '10px 14px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--surface-border)', cursor: 'pointer', textAlign: 'left', color: 'var(--text-primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span>
                           <strong style={{ fontSize: '0.9rem' }}>{enr.student.name}</strong>

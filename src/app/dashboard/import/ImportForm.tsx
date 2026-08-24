@@ -73,7 +73,7 @@ export default function ImportForm({ classes }: { classes: ClassData[] }) {
         setFile(null)
         if (fileInputRef.current) fileInputRef.current.value = ''
       }
-    } catch (error) {
+    } catch {
       setResult({ success: false, message: 'Ocorreu um erro inesperado.' })
     } finally {
       setIsUploading(false)

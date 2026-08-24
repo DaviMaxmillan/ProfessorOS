@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Calendar, Plus, Trash2, CalendarDays, Palette, ExternalLink, Filter, Copy, RefreshCw, FileSpreadsheet } from 'lucide-react'
 import { generateScheduleAction, updateScheduleEntryAction, deleteScheduleEntryAction, addSingleScheduleEntryAction, copyScheduleEntryAction, mirrorSchedulePlanAction } from '@/app/actions/schedule'
 import { buildScheduleSheet, exportSheetXLSX } from '@/lib/exportClass'
-import type { ClassDetail, ClassSummary } from '@/lib/types'
+import type { ClassDetail, ClassSummary, ScheduleEntryDetail } from '@/lib/types'
 
 export default function ScheduleTab({ classData, allClasses }: { classData: ClassDetail; allClasses: ClassSummary[] }) {
   const [isGenerating, setIsGenerating] = useState(false)
@@ -83,7 +83,7 @@ export default function ScheduleTab({ classData, allClasses }: { classData: Clas
     }
   }
 
-  const handleStartEdit = (entry: any) => {
+  const handleStartEdit = (entry: ScheduleEntryDetail) => {
     setEditingEntry(entry.id)
     setEditContent(entry.content || '')
     setEditNotes(entry.notes || '')
@@ -144,7 +144,7 @@ export default function ScheduleTab({ classData, allClasses }: { classData: Clas
     setIsMirroring(false)
     if (res.success) {
       setShowMirrorModal(false)
-      alert(`✅ ${(res as any).count} aulas espelhadas com sucesso!`)
+      alert(`✅ ${res.count} aulas espelhadas com sucesso!`)
     } else {
       alert(res.message)
     }
@@ -321,7 +321,7 @@ export default function ScheduleTab({ classData, allClasses }: { classData: Clas
                 </tr>
               </thead>
               <tbody>
-                {filteredEntries.map((entry: any) => {
+                {filteredEntries.map((entry) => {
                   const dateObj = new Date(entry.date)
                   // Format as DD/MM/YYYY using UTC to avoid timezone shift
                   const formattedDate = dateObj.toLocaleDateString('pt-BR', { timeZone: 'UTC' })
@@ -463,7 +463,7 @@ export default function ScheduleTab({ classData, allClasses }: { classData: Clas
                                     {otherClasses
                                       .find(c => c.id === copyTargetClassId)
                                       ?.scheduleEntries
-                                      .map((e: any) => (
+                                      .map((e) => (
                                         <option key={e.id} value={e.id}>
                                           {new Date(e.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}{e.content ? ` — ${e.content.substring(0, 30)}...` : ''}
                                         </option>

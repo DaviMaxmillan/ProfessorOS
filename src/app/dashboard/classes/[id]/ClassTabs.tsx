@@ -31,7 +31,7 @@ export default function ClassTabs({ classData, allClasses }: ClassTabsProps) {
   // local status state so UI updates immediately without a full reload
   const [statusMap, setStatusMap] = useState<Record<string, string>>(() => {
     const m: Record<string, string> = {}
-    classData.enrollments.forEach((e: any) => {
+    classData.enrollments.forEach((e) => {
       m[e.id] = e.status || 'ATIVO'
     })
     return m
@@ -136,7 +136,7 @@ export default function ClassTabs({ classData, allClasses }: ClassTabsProps) {
                   <td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>Nenhum aluno matriculado.</td>
                 </tr>
               ) : (
-                classData.enrollments.map((enrollment: any, index: number) => {
+                classData.enrollments.map((enrollment, index: number) => {
                   const currentStatus = statusMap[enrollment.id] ?? 'ATIVO'
                   const statusInfo = getStatusInfo(currentStatus)
                   

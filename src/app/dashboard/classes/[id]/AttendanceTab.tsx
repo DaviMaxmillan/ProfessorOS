@@ -12,7 +12,7 @@ export default function AttendanceTab({ classData }: { classData: ClassDetail })
   // Default all present
   const [attendance, setAttendance] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {}
-    classData.enrollments.forEach((e: any) => {
+    classData.enrollments.forEach((e) => {
       initial[e.id] = true
     })
     return initial
@@ -25,7 +25,7 @@ export default function AttendanceTab({ classData }: { classData: ClassDetail })
 
   const markAll = (present: boolean) => {
     const updated: Record<string, boolean> = {}
-    classData.enrollments.forEach((e: any) => {
+    classData.enrollments.forEach((e) => {
       updated[e.id] = present
     })
     setAttendance(updated)
@@ -98,7 +98,7 @@ export default function AttendanceTab({ classData }: { classData: ClassDetail })
           </tr>
         </thead>
         <tbody>
-          {classData.enrollments.map((enrollment: any, index: number) => {
+          {classData.enrollments.map((enrollment, index: number) => {
             const isPresent = attendance[enrollment.id] ?? true
             return (
               <tr key={enrollment.id} style={{ borderBottom: '1px solid var(--surface-border)' }} className="print-row">

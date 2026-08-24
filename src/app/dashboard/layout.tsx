@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -9,40 +9,18 @@ import {
 } from 'lucide-react'
 import { logoutAction } from '@/app/actions/auth'
 import { saveThemeAction } from '@/app/actions/settings'
+import { setTheme, usePreferences } from '@/lib/preferences'
 import GlobalSearch from '@/components/GlobalSearch'
 import './dashboard.css'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [isCollapsed, setIsCollapsed] = useState(true)
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
-
-  // Load theme from DB on mount (via cookie or initial server fetch)
-  useEffect(() => {
-    // Read from data-theme on html element (set by server layout or cookie)
-    const saved = document.documentElement.getAttribute('data-theme') as 'dark' | 'light' | null
-    if (saved) setTheme(saved)
-
-    // Also restore accent color and font from localStorage
-    const savedColor = localStorage.getItem('professoros_accent_color')
-    if (savedColor) {
-      document.documentElement.style.setProperty('--accent', savedColor)
-      const hex = savedColor.replace('#', '')
-      const r = parseInt(hex.substring(0, 2), 16)
-      const g = parseInt(hex.substring(2, 4), 16)
-      const b = parseInt(hex.substring(4, 6), 16)
-      document.documentElement.style.setProperty('--accent-glow', `rgba(${r}, ${g}, ${b}, 0.3)`)
-    }
-    const savedFont = localStorage.getItem('professoros_font_family')
-    if (savedFont) {
-      document.documentElement.style.setProperty('--font-primary', savedFont)
-    }
-  }, [])
+  const { theme } = usePreferences()
 
   const toggleTheme = async () => {
     const next = theme === 'dark' ? 'light' : 'dark'
     setTheme(next)
-    document.documentElement.setAttribute('data-theme', next)
     await saveThemeAction(next)
   }
 

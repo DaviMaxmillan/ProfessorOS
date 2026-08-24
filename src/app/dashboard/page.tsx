@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma'
 import { BookOpen, Users, Calendar, AlertTriangle, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
 import { requireAuth } from '@/lib/auth'
+import { enrollmentWithClassInclude, type EnrollmentWithClass } from '@/lib/types'
 
 export default async function DashboardPage() {
   await requireAuth()
@@ -22,11 +23,7 @@ export default async function DashboardPage() {
       orderBy: { id: 'desc' }
     }),
     prisma.enrollment.findMany({
-      include: {
-        student: true,
-        grades: true,
-        class: { include: { subject: true, semester: true, scheduleEntries: true } },
-      }
+      include: enrollmentWithClassInclude
     })
   ])
 
@@ -200,14 +197,14 @@ export default async function DashboardPage() {
   )
 }
 
-function ApprovalDonut({ enrollments }: { enrollments: any[] }) {
+function ApprovalDonut({ enrollments }: { enrollments: EnrollmentWithClass[] }) {
   let approved = 0
   let failed = 0
   let noData = 0
 
   enrollments.forEach(e => {
     if (!e.grades || e.grades.length === 0) { noData++; return }
-    const sum = e.grades.reduce((s: number, g: any) => s + g.value, 0)
+    const sum = e.grades.reduce((s, g) => s + g.value, 0)
     const avg = e.class.calculationMethod === 'AVERAGE' ? sum / e.grades.length : sum
     if (avg >= 6) approved++
     else failed++
@@ -217,8 +214,6 @@ function ApprovalDonut({ enrollments }: { enrollments: any[] }) {
   if (total === 0) return <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '20px 0' }}>Sem dados de notas ainda.</p>
 
   const approvedPct = Math.round((approved / total) * 100)
-  const failedPct = Math.round((failed / total) * 100)
-  const noDataPct = 100 - approvedPct - failedPct
 
   // SVG donut
   const cx = 60, cy = 60, r = 50, strokeW = 14

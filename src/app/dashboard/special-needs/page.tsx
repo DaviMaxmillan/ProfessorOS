@@ -4,6 +4,11 @@ import prisma from '@/lib/prisma'
 import NeedsManager from './NeedsManager'
 import { ensureSpecialNeedCategoriesMigratedAction } from '@/app/actions/specialNeedCategories'
 import { requireAuth } from '@/lib/auth'
+import {
+  classWithStudentsInclude,
+  specialNeedInclude,
+  studentSpecialNeedInclude,
+} from '@/lib/types'
 
 export default async function SpecialNeedsPage() {
   await requireAuth()
@@ -15,27 +20,15 @@ export default async function SpecialNeedsPage() {
       orderBy: { name: 'asc' }
     }),
     prisma.specialNeed.findMany({
-      include: { _count: { select: { studentNeeds: true } }, categoryRef: true },
+      include: specialNeedInclude,
       orderBy: { createdAt: 'asc' }
     }),
     prisma.studentSpecialNeed.findMany({
-      include: {
-        student: true,
-        specialNeed: { include: { categoryRef: true } },
-        enrollment: {
-          include: {
-            class: { include: { subject: true, semester: true } }
-          }
-        }
-      },
+      include: studentSpecialNeedInclude,
       orderBy: { createdAt: 'desc' }
     }),
     prisma.class.findMany({
-      include: {
-        subject: true,
-        semester: true,
-        enrollments: { include: { student: true } }
-      },
+      include: classWithStudentsInclude,
       orderBy: { order: 'asc' }
     })
   ])
