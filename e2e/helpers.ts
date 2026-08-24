@@ -18,9 +18,26 @@ export const db = new PrismaClient()
 let ipSeq = 0
 export async function novoContexto(browser: Browser): Promise<BrowserContext> {
   ipSeq++
-  return browser.newContext({
+  const context = await browser.newContext({
     extraHTTPHeaders: { 'x-forwarded-for': `198.51.100.${(ipSeq % 250) + 1}` },
   })
+
+  // Bloqueia qualquer requisição para fora da aplicação.
+  //
+  // O globals.css importa fontes do Google. O `extraHTTPHeaders` acima vale
+  // para todas as requisições do contexto, então esse cabeçalho ia junto para
+  // o fonts.gstatic.com — o que transforma a busca da fonte numa requisição
+  // CORS com preflight, que o CDN recusa. O console enchia de erros que não
+  // são da aplicação e derrubavam o teste que verifica o console.
+  //
+  // Além de resolver isso, deixa os testes independentes de rede.
+  await context.route('**/*', route => {
+    const { hostname } = new URL(route.request().url())
+    const local = hostname === '127.0.0.1' || hostname === 'localhost'
+    return local ? route.continue() : route.abort()
+  })
+
+  return context
 }
 
 /** Volta o sistema ao estado de primeiro acesso. */
