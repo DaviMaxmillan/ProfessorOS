@@ -14,8 +14,9 @@ import {
   updateGroupWorkAction
 } from '@/app/actions/groupwork'
 import { buildGroupsSheet, exportSheetXLSX } from '@/lib/exportClass'
+import type { ClassDetail, GroupWorkDetail } from '@/lib/types'
 
-export default function GroupWorkTab({ classData }: { classData: any }) {
+export default function GroupWorkTab({ classData }: { classData: ClassDetail }) {
   const [selectedGroupWork, setSelectedGroupWork] = useState<any>(null)
   const [isCreatingGW, setIsCreatingGW] = useState(false)
   const [newGwName, setNewGwName] = useState('')
@@ -162,7 +163,7 @@ export default function GroupWorkTab({ classData }: { classData: any }) {
   )
 }
 
-function GroupWorkManager({ gw, classData }: { gw: any, classData: any }) {
+function GroupWorkManager({ gw, classData }: { gw: GroupWorkDetail, classData: ClassDetail }) {
   const [newGroupName, setNewGroupName] = useState('')
   const [isRandomizing, setIsRandomizing] = useState(false)
   const [randomCount, setRandomCount] = useState('3')
@@ -237,7 +238,7 @@ function GroupWorkManager({ gw, classData }: { gw: any, classData: any }) {
               <div>
                 <h2 style={{ fontSize: '1.5rem', marginBottom: '8px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   {gw.name}
-                  {gw.activityId && <span style={{ fontSize: '0.8rem', background: 'rgba(99,102,241,0.2)', color: 'var(--accent)', padding: '2px 8px', borderRadius: '12px' }}>Peso {gw.activity.weight}</span>}
+                  {gw.activity && <span style={{ fontSize: '0.8rem', background: 'rgba(99,102,241,0.2)', color: 'var(--accent)', padding: '2px 8px', borderRadius: '12px' }}>Peso {gw.activity.weight}</span>}
                 </h2>
                 {gw.description && <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>{gw.description}</p>}
               </div>

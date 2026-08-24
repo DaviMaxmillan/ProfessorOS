@@ -6,8 +6,9 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { deleteClassAction, updateClassAction } from '@/app/actions/classes'
 import { exportAllXLSX } from '@/lib/exportClass'
+import type { ClassDetail } from '@/lib/types'
 
-export default function ClassHeader({ classData }: { classData: any }) {
+export default function ClassHeader({ classData }: { classData: ClassDetail }) {
   const router = useRouter()
   const [isEditing, setIsEditing] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -131,7 +132,7 @@ export default function ClassHeader({ classData }: { classData: any }) {
   )
 }
 
-function QuickStats({ classData }: { classData: any }) {
+function QuickStats({ classData }: { classData: ClassDetail }) {
   const activeEnrollments = classData.enrollments.filter((e: any) => !e.status || e.status === 'ATIVO')
   const total = activeEnrollments.length
 

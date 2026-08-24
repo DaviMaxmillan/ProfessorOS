@@ -4,8 +4,9 @@ import { useState } from 'react'
 import { Check, X, Save, Printer, Edit2, FileSpreadsheet } from 'lucide-react'
 import { saveProvisionalAttendanceAction, updateStudentNameAction } from '@/app/actions/diary'
 import { buildAttendanceSheet, exportSheetXLSX } from '@/lib/exportClass'
+import type { ClassDetail } from '@/lib/types'
 
-export default function AttendanceTab({ classData }: { classData: any }) {
+export default function AttendanceTab({ classData }: { classData: ClassDetail }) {
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0])
   
   // Default all present

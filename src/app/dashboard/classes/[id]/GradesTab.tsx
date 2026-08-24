@@ -4,8 +4,9 @@ import { useState } from 'react'
 import { Plus, Save, Calculator, Settings, X, Edit2, StickyNote, FileSpreadsheet } from 'lucide-react'
 import { createActivityAction, saveGradesAction, updateClassCalculationMethod, deleteActivityAction, updateStudentNameAction, saveEnrollmentNotesAction } from '@/app/actions/diary'
 import { buildGradesSheet, exportSheetXLSX } from '@/lib/exportClass'
+import type { ClassDetail } from '@/lib/types'
 
-export default function GradesTab({ classData }: { classData: any }) {
+export default function GradesTab({ classData }: { classData: ClassDetail }) {
   const [isAddingActivity, setIsAddingActivity] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [calcMethod, setCalcMethod] = useState(classData.calculationMethod || 'SUM')

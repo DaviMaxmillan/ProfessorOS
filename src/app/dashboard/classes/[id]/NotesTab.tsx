@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { Plus, Pin, Trash2, Edit2, Check, X, Search, ALargeSmall, FileSpreadsheet } from 'lucide-react'
 import { createNoteAction, updateNoteAction, deleteNoteAction } from '@/app/actions/notes'
 import { buildNotesSheet, exportSheetXLSX } from '@/lib/exportClass'
+import type { ClassDetail } from '@/lib/types'
 
 const LABELS = [
   { value: 'recado',   emoji: '📣', label: 'Recado',   color: '#60a5fa' },
@@ -206,7 +207,7 @@ function NoteCard({ note, onSave, onDelete, onTogglePin }: {
   )
 }
 
-export default function NotesTab({ classData }: { classData: any }) {
+export default function NotesTab({ classData }: { classData: ClassDetail }) {
   const [notes, setNotes] = useState<any[]>(classData.classNotes || [])
   const [isCreating, setIsCreating] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')

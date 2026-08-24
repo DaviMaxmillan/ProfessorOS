@@ -3,6 +3,7 @@
 import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { requireAuth } from '@/lib/auth'
+import { isPrismaErrorCode } from '@/lib/errors'
 
 // ---- Special Needs (categories) ----
 
@@ -96,8 +97,8 @@ export async function addStudentNeedAction(data: {
     })
     revalidatePath('/dashboard/special-needs')
     return { success: true }
-  } catch (e: any) {
-    if (e.code === 'P2002') return { success: false, message: 'Este aluno já está associado a essa necessidade nesta turma.' }
+  } catch (error) {
+    if (isPrismaErrorCode(error, 'P2002')) return { success: false, message: 'Este aluno já está associado a essa necessidade nesta turma.' }
     return { success: false, message: 'Erro ao adicionar.' }
   }
 }

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
+import { errorMessage } from '@/lib/errors'
 
 export async function saveProvisionalAttendanceAction(classId: string, date: string, attendanceData: Record<string, boolean>) {
   await requireAuth()
@@ -35,8 +36,8 @@ export async function saveProvisionalAttendanceAction(classId: string, date: str
 
     revalidatePath(`/dashboard/classes/${classId}`)
     return { success: true, message: 'Frequência provisória salva com sucesso!' }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao salvar frequência: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao salvar frequência: ${errorMessage(error)}` }
   }
 }
 
@@ -60,8 +61,8 @@ export async function createActivityAction(formData: FormData) {
 
     revalidatePath(`/dashboard/classes/${classId}`)
     return { success: true, message: 'Atividade criada com sucesso!' }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao criar atividade: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao criar atividade: ${errorMessage(error)}` }
   }
 }
 
@@ -82,8 +83,8 @@ export async function saveGradesAction(classId: string, activityId: string, grad
     await Promise.all(promises)
     revalidatePath(`/dashboard/classes/${classId}`)
     return { success: true, message: 'Notas salvas com sucesso!' }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao salvar notas: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao salvar notas: ${errorMessage(error)}` }
   }
 }
 
@@ -98,8 +99,8 @@ export async function updateClassCalculationMethod(classId: string, method: stri
     })
     revalidatePath(`/dashboard/classes/${classId}`)
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: error.message }
+  } catch (error) {
+    return { success: false, message: errorMessage(error) }
   }
 }
 
@@ -112,8 +113,8 @@ export async function deleteActivityAction(classId: string, activityId: string) 
     })
     revalidatePath(`/dashboard/classes/${classId}`)
     return { success: true, message: 'Atividade excluída!' }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao excluir atividade: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao excluir atividade: ${errorMessage(error)}` }
   }
 }
 
@@ -127,8 +128,8 @@ export async function updateStudentNameAction(studentId: string, newName: string
     })
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao atualizar nome: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao atualizar nome: ${errorMessage(error)}` }
   }
 }
 
@@ -142,8 +143,8 @@ export async function saveEnrollmentNotesAction(enrollmentId: string, notes: str
     })
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao salvar anotação: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao salvar anotação: ${errorMessage(error)}` }
   }
 }
 
@@ -157,8 +158,8 @@ export async function updateEnrollmentStatusAction(enrollmentId: string, status:
     })
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao atualizar status: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao atualizar status: ${errorMessage(error)}` }
   }
 }
 

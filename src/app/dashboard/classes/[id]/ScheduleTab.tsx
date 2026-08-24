@@ -4,8 +4,9 @@ import { useState } from 'react'
 import { Calendar, Plus, Trash2, CalendarDays, Palette, ExternalLink, Filter, Copy, RefreshCw, FileSpreadsheet } from 'lucide-react'
 import { generateScheduleAction, updateScheduleEntryAction, deleteScheduleEntryAction, addSingleScheduleEntryAction, copyScheduleEntryAction, mirrorSchedulePlanAction } from '@/app/actions/schedule'
 import { buildScheduleSheet, exportSheetXLSX } from '@/lib/exportClass'
+import type { ClassDetail, ClassSummary } from '@/lib/types'
 
-export default function ScheduleTab({ classData, allClasses }: { classData: any; allClasses: any[] }) {
+export default function ScheduleTab({ classData, allClasses }: { classData: ClassDetail; allClasses: ClassSummary[] }) {
   const [isGenerating, setIsGenerating] = useState(false)
   const [startDate, setStartDate] = useState(classData.startDate ? new Date(classData.startDate).toISOString().split('T')[0] : '')
   const [endDate, setEndDate] = useState(classData.endDate ? new Date(classData.endDate).toISOString().split('T')[0] : '')

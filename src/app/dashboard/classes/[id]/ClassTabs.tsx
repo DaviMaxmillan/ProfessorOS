@@ -9,10 +9,11 @@ import GroupWorkTab from './GroupWorkTab'
 import NotesTab from './NotesTab'
 import { updateEnrollmentStatusAction } from '@/app/actions/diary'
 import { buildStudentsSheet, exportSheetXLSX } from '@/lib/exportClass'
+import type { ClassDetail, ClassSummary } from '@/lib/types'
 
 type ClassTabsProps = {
-  classData: any;
-  allClasses: any[];
+  classData: ClassDetail;
+  allClasses: ClassSummary[];
 }
 
 const STATUS_OPTIONS = [

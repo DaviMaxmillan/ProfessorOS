@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
+import { errorMessage } from '@/lib/errors'
 
 export async function createNoteAction(classId: string, data: {
   title?: string
@@ -26,8 +27,8 @@ export async function createNoteAction(classId: string, data: {
     })
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: error.message }
+  } catch (error) {
+    return { success: false, message: errorMessage(error) }
   }
 }
 
@@ -55,8 +56,8 @@ export async function updateNoteAction(noteId: string, data: {
     })
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: error.message }
+  } catch (error) {
+    return { success: false, message: errorMessage(error) }
   }
 }
 
@@ -67,7 +68,7 @@ export async function deleteNoteAction(noteId: string) {
     await prisma.classNote.delete({ where: { id: noteId } })
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: error.message }
+  } catch (error) {
+    return { success: false, message: errorMessage(error) }
   }
 }

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
+import { errorMessage } from '@/lib/errors'
 
 export async function createInstitutionAction(formData: FormData) {
   await requireAuth()
@@ -15,8 +16,8 @@ export async function createInstitutionAction(formData: FormData) {
     await prisma.institution.create({ data: { name: name.trim() } })
     revalidatePath('/dashboard/classes')
     return { success: true, message: 'Instituição criada com sucesso!' }
-  } catch (error: any) {
-    return { success: false, message: `Erro: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro: ${errorMessage(error)}` }
   }
 }
 
@@ -29,8 +30,8 @@ export async function updateInstitutionAction(institutionId: string, formData: F
     await prisma.institution.update({ where: { id: institutionId }, data: { name: name.trim() } })
     revalidatePath('/dashboard/classes')
     return { success: true, message: 'Instituição atualizada com sucesso!' }
-  } catch (error: any) {
-    return { success: false, message: `Erro: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro: ${errorMessage(error)}` }
   }
 }
 
@@ -43,8 +44,8 @@ export async function deleteInstitutionAction(institutionId: string) {
     await prisma.institution.delete({ where: { id: institutionId } })
     revalidatePath('/dashboard/classes')
     return { success: true, message: 'Instituição excluída com sucesso!' }
-  } catch (error: any) {
-    return { success: false, message: `Erro: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro: ${errorMessage(error)}` }
   }
 }
 
@@ -59,8 +60,8 @@ export async function createSemesterAction(name: string) {
     }
     revalidatePath('/dashboard/classes')
     return { success: true, message: 'Semestre criado!', semesterId: semester.id }
-  } catch (error: any) {
-    return { success: false, message: `Erro: ${error.message}`, semesterId: null }
+  } catch (error) {
+    return { success: false, message: `Erro: ${errorMessage(error)}`, semesterId: null }
   }
 }
 
@@ -118,8 +119,8 @@ export async function createClassAction(formData: FormData) {
     revalidatePath('/dashboard')
     
     return { success: true, message: 'Turma criada com sucesso!' }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao criar turma: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao criar turma: ${errorMessage(error)}` }
   }
 }
 
@@ -133,8 +134,8 @@ export async function deleteClassAction(classId: string) {
     revalidatePath('/dashboard/classes')
     revalidatePath('/dashboard')
     return { success: true, message: 'Turma excluída com sucesso!' }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao excluir turma: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao excluir turma: ${errorMessage(error)}` }
   }
 }
 
@@ -186,8 +187,8 @@ export async function updateClassAction(classId: string, formData: FormData) {
     revalidatePath('/dashboard')
     
     return { success: true, message: 'Turma atualizada com sucesso!' }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao atualizar turma: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao atualizar turma: ${errorMessage(error)}` }
   }
 }
 
@@ -207,7 +208,7 @@ export async function updateClassOrderAction(orderedIds: string[]) {
     revalidatePath('/dashboard')
     
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao reordenar: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao reordenar: ${errorMessage(error)}` }
   }
 }

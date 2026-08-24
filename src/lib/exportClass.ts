@@ -6,23 +6,36 @@
  */
 
 import * as XLSX from 'xlsx'
+import type {
+  ActivityDetail,
+  CalculationMethod,
+  ClassDetail,
+  EnrollmentDetail,
+} from './types'
+
+/** Uma linha de planilha: cabeçalho da coluna -> valor da célula. */
+type SheetRow = Record<string, string | number>
 
 // ---- Helpers ----
 
-function calcGrades(enrollment: any, activities: any[], calcMethod: string) {
-  const b1Acts = activities.filter((a: any) => a.bimester === 1)
-  const b2Acts = activities.filter((a: any) => a.bimester === 2)
-  const afActs = activities.filter((a: any) => a.bimester === 3)
+function calcGrades(
+  enrollment: EnrollmentDetail,
+  activities: ActivityDetail[],
+  calcMethod: CalculationMethod | string
+) {
+  const b1Acts = activities.filter((a) => a.bimester === 1)
+  const b2Acts = activities.filter((a) => a.bimester === 2)
+  const afActs = activities.filter((a) => a.bimester === 3)
 
   const gradeMap: Record<string, number> = {}
-  enrollment.grades.forEach((g: any) => { gradeMap[g.activityId] = g.value })
+  enrollment.grades.forEach((g) => { gradeMap[g.activityId] = g.value })
 
   let b1Sum = 0, b2Sum = 0, afSum = 0
   let hasAf = false
 
-  b1Acts.forEach((a: any) => { b1Sum += (gradeMap[a.id] ?? 0) * a.weight })
-  b2Acts.forEach((a: any) => { b2Sum += (gradeMap[a.id] ?? 0) * a.weight })
-  afActs.forEach((a: any) => {
+  b1Acts.forEach((a) => { b1Sum += (gradeMap[a.id] ?? 0) * a.weight })
+  b2Acts.forEach((a) => { b2Sum += (gradeMap[a.id] ?? 0) * a.weight })
+  afActs.forEach((a) => {
     if (gradeMap[a.id] != null) { hasAf = true; afSum += (gradeMap[a.id] ?? 0) * a.weight }
   })
 
@@ -43,14 +56,14 @@ function calcGrades(enrollment: any, activities: any[], calcMethod: string) {
   return { b1Avg: parseFloat(b1Avg.toFixed(2)), b2Avg: parseFloat(b2Avg.toFixed(2)), afAvg: afAvg != null ? parseFloat(afAvg.toFixed(2)) : null, final: parseFloat(final.toFixed(2)) }
 }
 
-function classLabel(classData: any) {
+function classLabel(classData: ClassDetail) {
   return `${classData.subject.name}${classData.turmaName ? ` — ${classData.turmaName}` : ''} | ${classData.semester.name}`
 }
 
 // ---- Sheet builders ----
 
-export function buildStudentsSheet(classData: any): XLSX.WorkSheet {
-  const rows = classData.enrollments.map((e: any, i: number) => ({
+export function buildStudentsSheet(classData: ClassDetail): XLSX.WorkSheet {
+  const rows = classData.enrollments.map((e, i) => ({
     'Nº': i + 1,
     'Nome': e.student.name,
     'RGM': e.student.rgm || '',
@@ -61,26 +74,26 @@ export function buildStudentsSheet(classData: any): XLSX.WorkSheet {
   return XLSX.utils.json_to_sheet(rows)
 }
 
-export function buildGradesSheet(classData: any): XLSX.WorkSheet {
-  const b1Acts = classData.activities.filter((a: any) => a.bimester === 1)
-  const b2Acts = classData.activities.filter((a: any) => a.bimester === 2)
-  const afActs = classData.activities.filter((a: any) => a.bimester === 3)
+export function buildGradesSheet(classData: ClassDetail): XLSX.WorkSheet {
+  const b1Acts = classData.activities.filter((a) => a.bimester === 1)
+  const b2Acts = classData.activities.filter((a) => a.bimester === 2)
+  const afActs = classData.activities.filter((a) => a.bimester === 3)
 
-  const rows = classData.enrollments.map((e: any) => {
+  const rows = classData.enrollments.map((e) => {
     const gradeMap: Record<string, number> = {}
-    e.grades.forEach((g: any) => { gradeMap[g.activityId] = g.value })
+    e.grades.forEach((g) => { gradeMap[g.activityId] = g.value })
     const avgs = calcGrades(e, classData.activities, classData.calculationMethod)
 
-    const row: Record<string, any> = {
+    const row: SheetRow = {
       'Aluno': e.student.name,
       'RGM': e.student.rgm || '',
     }
-    b1Acts.forEach((a: any) => { row[`B1 – ${a.name} (P${a.weight})`] = gradeMap[a.id] ?? '' })
+    b1Acts.forEach((a) => { row[`B1 – ${a.name} (P${a.weight})`] = gradeMap[a.id] ?? '' })
     row['Média B1'] = avgs.b1Avg
-    b2Acts.forEach((a: any) => { row[`B2 – ${a.name} (P${a.weight})`] = gradeMap[a.id] ?? '' })
+    b2Acts.forEach((a) => { row[`B2 – ${a.name} (P${a.weight})`] = gradeMap[a.id] ?? '' })
     row['Média B2'] = avgs.b2Avg
     if (afActs.length > 0) {
-      afActs.forEach((a: any) => { row[`AF – ${a.name}`] = gradeMap[a.id] ?? '' })
+      afActs.forEach((a) => { row[`AF – ${a.name}`] = gradeMap[a.id] ?? '' })
     }
     row['Média Final'] = avgs.final
     row['Situação'] = avgs.final >= 6 ? 'Aprovado' : 'Em Risco'
@@ -90,10 +103,10 @@ export function buildGradesSheet(classData: any): XLSX.WorkSheet {
   return XLSX.utils.json_to_sheet(rows)
 }
 
-export function buildAttendanceSheet(classData: any): XLSX.WorkSheet {
+export function buildAttendanceSheet(classData: ClassDetail): XLSX.WorkSheet {
   // Consolidated absences per student (from scheduleEntries attendance records)
-  const rows = classData.enrollments.map((e: any, i: number) => {
-    const totalAulas = classData.scheduleEntries?.filter((se: any) => !se.isHoliday).length ?? 0
+  const rows = classData.enrollments.map((e, i) => {
+    const totalAulas = classData.scheduleEntries?.filter((se) => !se.isHoliday).length ?? 0
     const absences = e.absences ?? 0
     const presences = Math.max(0, totalAulas - absences)
     const freqPct = totalAulas > 0 ? ((presences / totalAulas) * 100).toFixed(1) : '—'
@@ -113,8 +126,8 @@ export function buildAttendanceSheet(classData: any): XLSX.WorkSheet {
   return XLSX.utils.json_to_sheet(rows)
 }
 
-export function buildScheduleSheet(classData: any): XLSX.WorkSheet {
-  const rows = (classData.scheduleEntries ?? []).map((se: any, i: number) => ({
+export function buildScheduleSheet(classData: ClassDetail): XLSX.WorkSheet {
+  const rows = (classData.scheduleEntries ?? []).map((se, i) => ({
     'Nº': i + 1,
     'Data': new Date(se.date).toLocaleDateString('pt-BR'),
     'Conteúdo': se.content || '',
@@ -126,12 +139,12 @@ export function buildScheduleSheet(classData: any): XLSX.WorkSheet {
   return XLSX.utils.json_to_sheet(rows)
 }
 
-export function buildGroupsSheet(classData: any): XLSX.WorkSheet {
-  const rows: any[] = []
+export function buildGroupsSheet(classData: ClassDetail): XLSX.WorkSheet {
+  const rows: SheetRow[] = []
 
-  ;(classData.groupWorks ?? []).forEach((gw: any) => {
-    ;(gw.groups ?? []).forEach((group: any) => {
-      ;(group.members ?? []).forEach((member: any) => {
+  ;(classData.groupWorks ?? []).forEach((gw) => {
+    ;(gw.groups ?? []).forEach((group) => {
+      ;(group.members ?? []).forEach((member) => {
         rows.push({
           'Trabalho': gw.name,
           'Grupo': group.name,
@@ -151,8 +164,8 @@ export function buildGroupsSheet(classData: any): XLSX.WorkSheet {
   return XLSX.utils.json_to_sheet(rows)
 }
 
-export function buildNotesSheet(classData: any): XLSX.WorkSheet {
-  const rows = (classData.classNotes ?? []).map((note: any) => ({
+export function buildNotesSheet(classData: ClassDetail): XLSX.WorkSheet {
+  const rows: SheetRow[] = (classData.classNotes ?? []).map((note) => ({
     'Título': note.title || '(sem título)',
     'Conteúdo': note.content,
     'Etiqueta': note.label || '',
@@ -173,7 +186,7 @@ export function exportSheetXLSX(ws: XLSX.WorkSheet, sheetName: string, filename:
   XLSX.writeFile(wb, filename)
 }
 
-export function exportAllXLSX(classData: any) {
+export function exportAllXLSX(classData: ClassDetail) {
   const wb = XLSX.utils.book_new()
   const label = classLabel(classData).replace(/[/\\?%*:|"<>]/g, '-')
 
