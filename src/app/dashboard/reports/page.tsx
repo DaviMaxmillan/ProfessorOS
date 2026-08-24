@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { getFiltersAction, getClassReportAction } from '@/app/actions/reports'
 import { Printer, Filter, FileSpreadsheet } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import { finalGradeOrNull, type GradedActivity } from '@/lib/grades'
 
 /** Os filtros e o relatório vêm das Server Actions — o tipo é o retorno delas. */
 type Filters = Awaited<ReturnType<typeof getFiltersAction>>
@@ -13,12 +14,17 @@ type ReportEnrollment = NonNullable<ReportData>['enrollments'][number]
 /** Uma linha do relatório: a matrícula com a média já calculada. */
 type ReportRow = { enrollment: ReportEnrollment; finalGrade: number | null }
 
-function calcFinal(enrollment: ReportEnrollment, method: string): number | null {
-  if (!enrollment.grades || enrollment.grades.length === 0) return null
-  const sum = enrollment.grades.reduce((s, g) => s + g.value, 0)
-  const base = method === 'AVERAGE' ? sum / enrollment.grades.length : sum
-  if (enrollment.afGrade != null) return (base + enrollment.afGrade) / 2
-  return base
+/**
+ * O relatório usa exatamente o mesmo cálculo do diário de notas. Antes esta
+ * tela somava as notas cruas e ignorava peso, bimestre e AF, então mostrava
+ * uma média diferente da que o professor via no diário da mesma turma.
+ */
+function calcFinal(
+  activities: GradedActivity[],
+  enrollment: ReportEnrollment,
+  method: string
+): number | null {
+  return finalGradeOrNull(activities, enrollment.grades, method)
 }
 
 export default function ReportsPage() {
@@ -63,7 +69,7 @@ export default function ReportsPage() {
     if (!reportData?.enrollments) return []
     return reportData.enrollments.map(enrollment => ({
       enrollment,
-      finalGrade: calcFinal(enrollment, reportData.calculationMethod),
+      finalGrade: calcFinal(reportData.activities, enrollment, reportData.calculationMethod),
     }))
   }, [reportData])
 

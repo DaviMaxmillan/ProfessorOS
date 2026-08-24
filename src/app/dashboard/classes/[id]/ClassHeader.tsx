@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { deleteClassAction, updateClassAction } from '@/app/actions/classes'
 import { exportAllXLSX } from '@/lib/exportClass'
 import type { ClassDetail } from '@/lib/types'
+import { finalGradeOrNull, isPassing } from '@/lib/grades'
 
 export default function ClassHeader({ classData }: { classData: ClassDetail }) {
   const router = useRouter()
@@ -136,22 +137,20 @@ function QuickStats({ classData }: { classData: ClassDetail }) {
   const activeEnrollments = classData.enrollments.filter((e) => !e.status || e.status === 'ATIVO')
   const total = activeEnrollments.length
 
-  // Calculate estimated averages from grades
+  // Usa o mesmo cálculo do diário de notas. Antes esta tela somava as notas
+  // cruas, ignorando peso, bimestre e AF — um aluno com 2 em quatro atividades
+  // aparecia aqui como 8.0 e "aprovado", enquanto o diário mostrava 2.0.
   let avgSum = 0
   let passCount = 0
   let validCount = 0
 
   activeEnrollments.forEach((e) => {
-    if (e.grades && e.grades.length > 0) {
-      let gradeSum = 0
-      e.grades.forEach((g) => { gradeSum += g.value })
-      const avg = classData.calculationMethod === 'AVERAGE'
-        ? gradeSum / e.grades.length
-        : gradeSum
-      avgSum += avg
-      if (avg >= 6) passCount++
-      validCount++
-    }
+    const final = finalGradeOrNull(classData.activities, e.grades, classData.calculationMethod)
+    if (final === null) return
+
+    avgSum += final
+    if (isPassing(final)) passCount++
+    validCount++
   })
 
   const classAvg = validCount > 0 ? (avgSum / validCount).toFixed(1) : '—'

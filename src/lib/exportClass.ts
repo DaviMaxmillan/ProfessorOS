@@ -6,55 +6,13 @@
  */
 
 import * as XLSX from 'xlsx'
-import type {
-  ActivityDetail,
-  CalculationMethod,
-  ClassDetail,
-  EnrollmentDetail,
-} from './types'
+import type { ClassDetail } from './types'
+import { calculateGrades, isPassing } from './grades'
 
 /** Uma linha de planilha: cabeçalho da coluna -> valor da célula. */
 type SheetRow = Record<string, string | number>
 
 // ---- Helpers ----
-
-function calcGrades(
-  enrollment: EnrollmentDetail,
-  activities: ActivityDetail[],
-  calcMethod: CalculationMethod | string
-) {
-  const b1Acts = activities.filter((a) => a.bimester === 1)
-  const b2Acts = activities.filter((a) => a.bimester === 2)
-  const afActs = activities.filter((a) => a.bimester === 3)
-
-  const gradeMap: Record<string, number> = {}
-  enrollment.grades.forEach((g) => { gradeMap[g.activityId] = g.value })
-
-  let b1Sum = 0, b2Sum = 0, afSum = 0
-  let hasAf = false
-
-  b1Acts.forEach((a) => { b1Sum += (gradeMap[a.id] ?? 0) * a.weight })
-  b2Acts.forEach((a) => { b2Sum += (gradeMap[a.id] ?? 0) * a.weight })
-  afActs.forEach((a) => {
-    if (gradeMap[a.id] != null) { hasAf = true; afSum += (gradeMap[a.id] ?? 0) * a.weight }
-  })
-
-  const b1Avg = b1Sum / 10
-  const b2Avg = b2Sum / 10
-  const afAvg = afActs.length > 0 && hasAf ? afSum / 10 : null
-
-  let final = calcMethod === 'AVERAGE' ? (b1Avg + b2Avg) / 2 : b1Avg + b2Avg
-
-  if (afAvg !== null && final < 6) {
-    if (b1Avg <= b2Avg) {
-      final = calcMethod === 'AVERAGE' ? (afAvg + b2Avg) / 2 : afAvg + b2Avg
-    } else {
-      final = calcMethod === 'AVERAGE' ? (b1Avg + afAvg) / 2 : b1Avg + afAvg
-    }
-  }
-
-  return { b1Avg: parseFloat(b1Avg.toFixed(2)), b2Avg: parseFloat(b2Avg.toFixed(2)), afAvg: afAvg != null ? parseFloat(afAvg.toFixed(2)) : null, final: parseFloat(final.toFixed(2)) }
-}
 
 function classLabel(classData: ClassDetail) {
   return `${classData.subject.name}${classData.turmaName ? ` — ${classData.turmaName}` : ''} | ${classData.semester.name}`
@@ -82,7 +40,7 @@ export function buildGradesSheet(classData: ClassDetail): XLSX.WorkSheet {
   const rows = classData.enrollments.map((e) => {
     const gradeMap: Record<string, number> = {}
     e.grades.forEach((g) => { gradeMap[g.activityId] = g.value })
-    const avgs = calcGrades(e, classData.activities, classData.calculationMethod)
+    const avgs = calculateGrades(classData.activities, e.grades, classData.calculationMethod)
 
     const row: SheetRow = {
       'Aluno': e.student.name,
@@ -96,7 +54,7 @@ export function buildGradesSheet(classData: ClassDetail): XLSX.WorkSheet {
       afActs.forEach((a) => { row[`AF – ${a.name}`] = gradeMap[a.id] ?? '' })
     }
     row['Média Final'] = avgs.final
-    row['Situação'] = avgs.final >= 6 ? 'Aprovado' : 'Em Risco'
+    row['Situação'] = isPassing(avgs.final) ? 'Aprovado' : 'Em Risco'
     return row
   })
 

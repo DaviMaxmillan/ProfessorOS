@@ -5,6 +5,7 @@ import { Plus, Calculator, Settings, X, Edit2, StickyNote, FileSpreadsheet } fro
 import { createActivityAction, saveGradesAction, updateClassCalculationMethod, deleteActivityAction, updateStudentNameAction, saveEnrollmentNotesAction } from '@/app/actions/diary'
 import { buildGradesSheet, exportSheetXLSX } from '@/lib/exportClass'
 import type { ClassDetail } from '@/lib/types'
+import { calculateGrades } from '@/lib/grades'
 
 export default function GradesTab({ classData }: { classData: ClassDetail }) {
   const [isAddingActivity, setIsAddingActivity] = useState(false)
@@ -48,51 +49,20 @@ export default function GradesTab({ classData }: { classData: ClassDetail }) {
   }
 
   const calculateFinalAvg = (enrollmentId: string) => {
-    let b1Sum = 0;
-    let b2Sum = 0;
-    let afSum = 0;
-    let hasAfGrade = false;
-    
-    classData.activities.forEach((act) => {
-      const gradeVal = gradesState[enrollmentId]?.[act.id];
-      const grade = typeof gradeVal === 'number' ? gradeVal : 0;
-      
-      if (act.bimester === 1) {
-        b1Sum += grade * act.weight;
-      } else if (act.bimester === 2) {
-        b2Sum += grade * act.weight;
-      } else if (act.bimester === 3) {
-        if (typeof gradeVal === 'number') {
-          hasAfGrade = true;
-        }
-        afSum += grade * act.weight;
-      }
-    });
+    // As notas em edição vivem em `gradesState`, então são convertidas para o
+    // formato do cálculo compartilhado. Só entram as que têm valor: uma célula
+    // vazia é "sem nota", não "zero".
+    const grades = classData.activities
+      .map(act => ({ activityId: act.id, value: gradesState[enrollmentId]?.[act.id] }))
+      .filter((g): g is { activityId: string; value: number } => typeof g.value === 'number')
 
-    const b1Avg = b1Sum / 10;
-    const b2Avg = b2Sum / 10;
-    const afAvg = (afActivities.length > 0 && hasAfGrade) ? (afSum / 10) : null;
-    
-    let finalRaw = 0;
-    if (calcMethod === 'AVERAGE') {
-      finalRaw = (b1Avg + b2Avg) / 2;
-    } else {
-      finalRaw = b1Avg + b2Avg;
-    }
-    
-    if (afAvg !== null && finalRaw < 6.0) {
-      if (b1Avg <= b2Avg) {
-        finalRaw = calcMethod === 'AVERAGE' ? (afAvg + b2Avg) / 2 : (afAvg + b2Avg);
-      } else {
-        finalRaw = calcMethod === 'AVERAGE' ? (b1Avg + afAvg) / 2 : (b1Avg + afAvg);
-      }
-    }
+    const r = calculateGrades(classData.activities, grades, calcMethod)
 
     return {
-      b1Avg: b1Avg.toFixed(1),
-      b2Avg: b2Avg.toFixed(1),
-      afAvg: afAvg !== null ? afAvg.toFixed(1) : null,
-      final: finalRaw.toFixed(1)
+      b1Avg: r.b1Avg.toFixed(1),
+      b2Avg: r.b2Avg.toFixed(1),
+      afAvg: r.afAvg !== null ? r.afAvg.toFixed(1) : null,
+      final: r.final.toFixed(1),
     }
   }
 
