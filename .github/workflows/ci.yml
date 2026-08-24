@@ -49,8 +49,11 @@ jobs:
           POSTGRES_DB: professoros_test
         ports:
           - 5432:5432
+        # pg_isready sem -U usa o usuário do sistema (root no runner), que não
+        # existe no banco: o healthcheck falharia sempre e o job abortaria antes
+        # de rodar qualquer teste.
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres -d professoros_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
