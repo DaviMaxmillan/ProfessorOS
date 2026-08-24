@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import * as xlsx from 'xlsx'
 import prisma from '@/lib/prisma'
+import { requireAuth } from '@/lib/auth'
+import { errorMessage } from '@/lib/errors'
 
 export type ImportResult = {
   success: boolean;
@@ -13,7 +15,7 @@ export type ImportResult = {
   };
 }
 
-function parseExcelDate(value: any): Date | undefined {
+function parseExcelDate(value: unknown): Date | undefined {
   if (!value) return undefined;
   if (typeof value === 'number') {
     // Excel starts at 1900-01-01, JS at 1970-01-01 (difference is 25569 days)
@@ -27,6 +29,8 @@ function parseExcelDate(value: any): Date | undefined {
 }
 
 export async function importExcelAction(formData: FormData): Promise<ImportResult> {
+  await requireAuth()
+
   try {
     const classId = formData.get('classId') as string
     const file = formData.get('file') as File
@@ -45,7 +49,7 @@ export async function importExcelAction(formData: FormData): Promise<ImportResul
     
     const sheetName = workbook.SheetNames[0]
     const sheet = workbook.Sheets[sheetName]
-    const rawData = xlsx.utils.sheet_to_json<any[]>(sheet, { header: 1 })
+    const rawData = xlsx.utils.sheet_to_json<unknown[]>(sheet, { header: 1 })
     
     if (rawData.length === 0) {
       return { success: false, message: 'Planilha vazia.' }
@@ -190,8 +194,8 @@ export async function importExcelAction(formData: FormData): Promise<ImportResul
         updatedStudents
       }
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('Erro na importação:', error)
-    return { success: false, message: `Erro ao processar arquivo: ${error.message}` }
+    return { success: false, message: `Erro ao processar arquivo: ${errorMessage(error)}` }
   }
 }

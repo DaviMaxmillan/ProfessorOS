@@ -4,8 +4,12 @@ import prisma from '@/lib/prisma'
 import { Building2 } from 'lucide-react'
 import CreateInstitutionButton from './CreateInstitutionButton'
 import InstitutionCard from './InstitutionCard'
+import { requireAuth } from '@/lib/auth'
+import Link from 'next/link'
 
 export default async function ClassesPage() {
+  await requireAuth()
+
   const institutions = await prisma.institution.findMany({
     include: {
       _count: { select: { classes: true } }
@@ -30,7 +34,7 @@ export default async function ClassesPage() {
           <div className="glass-panel" style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-secondary)' }}>
             <Building2 size={48} style={{ margin: '0 auto 16px', opacity: 0.4 }} />
             <p style={{ fontSize: '1.1rem', marginBottom: '8px' }}>Nenhuma instituição cadastrada ainda.</p>
-            <p style={{ fontSize: '0.9rem' }}>Clique em "Nova Instituição" para começar.</p>
+            <p style={{ fontSize: '0.9rem' }}>Clique em “Nova Instituição” para começar.</p>
           </div>
         ) : (
           <>
@@ -39,7 +43,7 @@ export default async function ClassesPage() {
             ))}
 
             {orphanClasses > 0 && (
-              <a href="/dashboard/classes/inst/none" style={{ textDecoration: 'none' }}>
+              <Link href="/dashboard/classes/inst/none" style={{ textDecoration: 'none' }}>
                 <div className="glass-panel class-card" style={{
                   padding: '22px 28px',
                   display: 'flex',
@@ -52,7 +56,7 @@ export default async function ClassesPage() {
                     📁 Sem Instituição ({orphanClasses} {orphanClasses === 1 ? 'turma' : 'turmas'})
                   </p>
                 </div>
-              </a>
+              </Link>
             )}
           </>
         )}

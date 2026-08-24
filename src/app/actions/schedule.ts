@@ -3,8 +3,12 @@
 import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/prisma'
 import { isHoliday } from '@/lib/holidays'
+import { requireAuth } from '@/lib/auth'
+import { errorMessage } from '@/lib/errors'
 
 export async function generateScheduleAction(classId: string, startDateStr: string, endDateStr: string, daysOfWeekStr: string) {
+  await requireAuth()
+
   try {
     // Fix timezone offset by forcing noon UTC
     const startDate = new Date(startDateStr.includes('T') ? startDateStr : `${startDateStr}T12:00:00Z`)
@@ -31,7 +35,7 @@ export async function generateScheduleAction(classId: string, startDateStr: stri
     })
 
     const entries = []
-    let currentDate = new Date(startDate)
+    const currentDate = new Date(startDate)
 
     while (currentDate <= endDate) {
       if (daysOfWeek.includes(currentDate.getDay())) {
@@ -57,8 +61,8 @@ export async function generateScheduleAction(classId: string, startDateStr: stri
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true, message: `${entries.length} dias gerados no cronograma.` }
 
-  } catch (error: any) {
-    return { success: false, message: `Erro ao gerar cronograma: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao gerar cronograma: ${errorMessage(error)}` }
   }
 }
 
@@ -66,6 +70,8 @@ export async function updateScheduleEntryAction(
   entryId: string, 
   data: { content: string; notes: string; rowColor: string | null; driveLink: string | null }
 ) {
+  await requireAuth()
+
   try {
     await prisma.scheduleEntry.update({
       where: { id: entryId },
@@ -78,12 +84,14 @@ export async function updateScheduleEntryAction(
     })
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao atualizar cronograma: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao atualizar cronograma: ${errorMessage(error)}` }
   }
 }
 
 export async function addSingleScheduleEntryAction(classId: string, dateStr: string) {
+  await requireAuth()
+
   try {
     const date = new Date(dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00Z`)
     if (isNaN(date.getTime())) return { success: false, message: 'Data inválida' }
@@ -102,22 +110,26 @@ export async function addSingleScheduleEntryAction(classId: string, dateStr: str
 
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao adicionar data: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao adicionar data: ${errorMessage(error)}` }
   }
 }
 
 export async function deleteScheduleEntryAction(entryId: string) {
+  await requireAuth()
+
   try {
     await prisma.scheduleEntry.delete({ where: { id: entryId } })
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao excluir data: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao excluir data: ${errorMessage(error)}` }
   }
 }
 
 export async function copyScheduleEntryAction(sourceEntryId: string, targetEntryId: string) {
+  await requireAuth()
+
   try {
     const source = await prisma.scheduleEntry.findUnique({ where: { id: sourceEntryId } })
     if (!source) return { success: false, message: 'Aula de origem não encontrada.' }
@@ -133,8 +145,8 @@ export async function copyScheduleEntryAction(sourceEntryId: string, targetEntry
     })
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao copiar aula: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao copiar aula: ${errorMessage(error)}` }
   }
 }
 
@@ -143,6 +155,8 @@ export async function mirrorSchedulePlanAction(
   targetClassId: string,
   overwrite: boolean
 ) {
+  await requireAuth()
+
   try {
     const [sourceEntries, targetEntries] = await Promise.all([
       prisma.scheduleEntry.findMany({
@@ -183,7 +197,7 @@ export async function mirrorSchedulePlanAction(
     await prisma.$transaction(updates)
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true, count: updates.length }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao espelhar plano: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao espelhar plano: ${errorMessage(error)}` }
   }
 }

@@ -1,52 +1,76 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { getFiltersAction, getClassReportAction } from '@/app/actions/reports'
-import { BarChart2, Download, Printer, Filter, FileSpreadsheet } from 'lucide-react'
+import { Printer, Filter, FileSpreadsheet } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
+/** Os filtros e o relatório vêm das Server Actions — o tipo é o retorno delas. */
+type Filters = Awaited<ReturnType<typeof getFiltersAction>>
+type ReportData = Awaited<ReturnType<typeof getClassReportAction>>
+type ReportEnrollment = NonNullable<ReportData>['enrollments'][number]
+
+/** Uma linha do relatório: a matrícula com a média já calculada. */
+type ReportRow = { enrollment: ReportEnrollment; finalGrade: number | null }
+
+function calcFinal(enrollment: ReportEnrollment, method: string): number | null {
+  if (!enrollment.grades || enrollment.grades.length === 0) return null
+  const sum = enrollment.grades.reduce((s, g) => s + g.value, 0)
+  const base = method === 'AVERAGE' ? sum / enrollment.grades.length : sum
+  if (enrollment.afGrade != null) return (base + enrollment.afGrade) / 2
+  return base
+}
+
 export default function ReportsPage() {
-  const [filters, setFilters] = useState<any>(null)
+  const [filters, setFilters] = useState<Filters | null>(null)
   const [selectedClass, setSelectedClass] = useState('')
-  const [reportData, setReportData] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  // O relatório é guardado junto da turma a que pertence. Assim "carregando" e
+  // "relatório atual" são derivados de `selectedClass`, em vez de estados
+  // paralelos que precisam ser sincronizados dentro de um efeito.
+  const [report, setReport] = useState<{ classId: string; data: ReportData } | null>(null)
   const reportRef = useRef<HTMLDivElement>(null)
 
+  const reportData = report?.classId === selectedClass ? report.data : null
+  const isLoading = selectedClass !== '' && report?.classId !== selectedClass
+
   useEffect(() => {
-    getFiltersAction().then(setFilters)
+    let cancelado = false
+    getFiltersAction().then(dados => { if (!cancelado) setFilters(dados) })
+    return () => { cancelado = true }
   }, [])
 
   useEffect(() => {
-    if (selectedClass) {
-      setIsLoading(true)
-      getClassReportAction(selectedClass).then(data => {
-        setReportData(data)
-        setIsLoading(false)
-      })
-    } else {
-      setReportData(null)
-    }
+    if (!selectedClass) return
+
+    // Sem esse cancelamento, trocar de turma rapidamente deixa a resposta da
+    // consulta anterior chegar depois e sobrescrever o relatório atual.
+    let cancelado = false
+
+    getClassReportAction(selectedClass).then(data => {
+      if (cancelado) return
+      setReport({ classId: selectedClass, data })
+    })
+
+    return () => { cancelado = true }
   }, [selectedClass])
 
   const handlePrint = () => { window.print() }
 
-  // ---- Grade calculation ----
-  function calcFinal(enrollment: any, method: string) {
-    if (!enrollment.grades || enrollment.grades.length === 0) return null
-    const sum = enrollment.grades.reduce((s: number, g: any) => s + g.value, 0)
-    const base = method === 'AVERAGE' ? sum / enrollment.grades.length : sum
-    if (enrollment.afGrade != null) return (base + enrollment.afGrade) / 2
-    return base
-  }
+  // A média calculada fica numa estrutura à parte. Antes ela era gravada de
+  // volta no objeto vindo do servidor (`e._calculatedFinal = f`), o que
+  // dependia de a renderização acontecer sempre depois desse laço.
+  const rows: ReportRow[] = useMemo(() => {
+    if (!reportData?.enrollments) return []
+    return reportData.enrollments.map(enrollment => ({
+      enrollment,
+      finalGrade: calcFinal(enrollment, reportData.calculationMethod),
+    }))
+  }, [reportData])
 
-  let averages: number[] = []
-  if (reportData?.enrollments) {
-    reportData.enrollments.forEach((e: any) => {
-      const f = calcFinal(e, reportData.calculationMethod)
-      e._calculatedFinal = f
-      if (f !== null) averages.push(f)
-    })
-  }
+  const averages = useMemo(
+    () => rows.map(r => r.finalGrade).filter((g): g is number => g !== null),
+    [rows]
+  )
 
   const classAverage = averages.length > 0 ? (averages.reduce((a, b) => a + b, 0) / averages.length).toFixed(1) : '0.0'
   const aboveAverageCount = averages.filter(a => a >= 6).length
@@ -55,15 +79,15 @@ export default function ReportsPage() {
   // ---- XLSX Export ----
   const exportXLSX = () => {
     if (!reportData) return
-    const rows = reportData.enrollments.map((e: any) => ({
-      'Aluno': e.student.name,
-      'RGM': e.student.rgm || '',
-      'Faltas': e.absences,
-      'Média Final': e._calculatedFinal != null ? parseFloat(e._calculatedFinal.toFixed(2)) : '',
-      'Situação': e._calculatedFinal != null ? (e._calculatedFinal >= 6 ? 'Aprovado' : 'Reprovado') : 'Sem nota',
-      'Status': e.status || 'ATIVO',
+    const sheetRows = rows.map(({ enrollment, finalGrade }) => ({
+      'Aluno': enrollment.student.name,
+      'RGM': enrollment.student.rgm || '',
+      'Faltas': enrollment.absences,
+      'Média Final': finalGrade != null ? parseFloat(finalGrade.toFixed(2)) : '',
+      'Situação': finalGrade != null ? (finalGrade >= 6 ? 'Aprovado' : 'Reprovado') : 'Sem nota',
+      'Status': enrollment.status || 'ATIVO',
     }))
-    const ws = XLSX.utils.json_to_sheet(rows)
+    const ws = XLSX.utils.json_to_sheet(sheetRows)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Relatório')
     const label = `${reportData.subject.name}${reportData.turmaName ? `_${reportData.turmaName}` : ''}_${reportData.semester.name}`
@@ -108,7 +132,7 @@ export default function ReportsPage() {
             onChange={e => setSelectedClass(e.target.value)}
           >
             <option value="">-- Escolha uma turma --</option>
-            {filters?.classes.map((c: any) => (
+            {filters?.classes.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.subject.name}{c.turmaName ? ` — ${c.turmaName}` : ''} | {c.semester.name}{c.schedule ? ` | ${c.schedule}` : ''}
               </option>
@@ -155,8 +179,7 @@ export default function ReportsPage() {
               </tr>
             </thead>
             <tbody>
-              {reportData.enrollments.map((enr: any) => {
-                const finalGrade = enr._calculatedFinal
+              {rows.map(({ enrollment: enr, finalGrade }) => {
                 const isApproved = finalGrade != null && finalGrade >= 6
                 return (
                   <tr key={enr.id} style={{ borderBottom: '1px solid #eee', background: finalGrade == null ? '#fafafa' : 'transparent' }}>

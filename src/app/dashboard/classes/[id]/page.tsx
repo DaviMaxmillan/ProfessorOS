@@ -6,60 +6,22 @@ import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import ClassTabs from './ClassTabs'
 import ClassHeader from './ClassHeader'
+import { requireAuth } from '@/lib/auth'
+import { classDetailInclude, classSummaryInclude } from '@/lib/types'
 
 export default async function ClassDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireAuth()
+
   const { id } = await params
   
   const classData = await prisma.class.findUnique({
     where: { id },
-    include: {
-      institution: true,
-      semester: true,
-      subject: true,
-      activities: {
-        orderBy: { createdAt: 'asc' }
-      },
-      scheduleEntries: {
-        orderBy: { date: 'asc' }
-      },
-      enrollments: {
-        include: {
-          student: true,
-          grades: true
-        },
-        orderBy: {
-          student: {
-            name: 'asc'
-          }
-        }
-      },
-      groupWorks: {
-        include: {
-          activity: true,
-          groups: {
-            include: {
-              members: {
-                include: {
-                  enrollment: {
-                    include: {
-                      student: true
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      classNotes: {
-        orderBy: [{ pinned: 'desc' }, { createdAt: 'desc' }]
-      }
-    }
+    include: classDetailInclude,
   })
 
   // All classes for copy/mirror feature
   const allClasses = await prisma.class.findMany({
-    include: { subject: true, semester: true, scheduleEntries: { orderBy: { date: 'asc' } } },
+    include: classSummaryInclude,
     orderBy: { order: 'asc' }
   })
 

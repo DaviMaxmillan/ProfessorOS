@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Save, Calculator, Settings, X, Edit2, StickyNote, FileSpreadsheet } from 'lucide-react'
+import { Plus, Calculator, Settings, X, Edit2, StickyNote, FileSpreadsheet } from 'lucide-react'
 import { createActivityAction, saveGradesAction, updateClassCalculationMethod, deleteActivityAction, updateStudentNameAction, saveEnrollmentNotesAction } from '@/app/actions/diary'
 import { buildGradesSheet, exportSheetXLSX } from '@/lib/exportClass'
+import type { ClassDetail } from '@/lib/types'
 
-export default function GradesTab({ classData }: { classData: any }) {
+export default function GradesTab({ classData }: { classData: ClassDetail }) {
   const [isAddingActivity, setIsAddingActivity] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [calcMethod, setCalcMethod] = useState(classData.calculationMethod || 'SUM')
@@ -16,18 +17,18 @@ export default function GradesTab({ classData }: { classData: any }) {
   // gradesState shape: { [enrollmentId]: { [activityId]: number | null } }
   const [gradesState, setGradesState] = useState<Record<string, Record<string, number | null>>>(() => {
     const initial: Record<string, Record<string, number | null>> = {}
-    classData.enrollments.forEach((e: any) => {
+    classData.enrollments.forEach((e) => {
       initial[e.id] = {}
-      e.grades.forEach((g: any) => {
+      e.grades.forEach((g) => {
         initial[e.id][g.activityId] = g.value
       })
     })
     return initial
   })
 
-  const b1Activities = classData.activities.filter((a: any) => a.bimester === 1)
-  const b2Activities = classData.activities.filter((a: any) => a.bimester === 2)
-  const afActivities = classData.activities.filter((a: any) => a.bimester === 3)
+  const b1Activities = classData.activities.filter((a) => a.bimester === 1)
+  const b2Activities = classData.activities.filter((a) => a.bimester === 2)
+  const afActivities = classData.activities.filter((a) => a.bimester === 3)
 
   const handleGradeChange = (enrollmentId: string, activityId: string, val: string) => {
     const num = parseFloat(val)
@@ -52,7 +53,7 @@ export default function GradesTab({ classData }: { classData: any }) {
     let afSum = 0;
     let hasAfGrade = false;
     
-    classData.activities.forEach((act: any) => {
+    classData.activities.forEach((act) => {
       const gradeVal = gradesState[enrollmentId]?.[act.id];
       const grade = typeof gradeVal === 'number' ? gradeVal : 0;
       
@@ -111,7 +112,7 @@ export default function GradesTab({ classData }: { classData: any }) {
   const handleSaveGrades = async (activityId: string) => {
     setIsSaving(true)
     const gradesData: Record<string, number> = {}
-    classData.enrollments.forEach((e: any) => {
+    classData.enrollments.forEach((e) => {
       gradesData[e.id] = gradesState[e.id]?.[activityId] || 0
     })
 
@@ -234,7 +235,7 @@ export default function GradesTab({ classData }: { classData: any }) {
               </th>
             </tr>
             <tr style={{ background: 'rgba(0,0,0,0.1)' }}>
-              {b1Activities.map((act: any) => (
+              {b1Activities.map((act) => (
                 <th key={act.id} style={{ padding: '12px', textAlign: 'center', color: 'var(--text-secondary)', fontWeight: '500', borderBottom: '1px solid var(--surface-border)', position: 'relative' }}>
                   <button onClick={() => handleDeleteActivity(act.id)} style={{ position: 'absolute', top: '4px', right: '4px', background: 'none', border: 'none', color: 'rgba(239, 68, 68, 0.6)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px' }} title="Excluir Atividade" onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'} onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(239, 68, 68, 0.6)'}>
                     <X size={12} strokeWidth={3} />
@@ -246,7 +247,7 @@ export default function GradesTab({ classData }: { classData: any }) {
               ))}
               <th style={{ padding: '12px', textAlign: 'center', color: '#fff', borderBottom: '1px solid var(--surface-border)', borderRight: '1px solid var(--surface-border)' }}>Média B1</th>
               
-              {b2Activities.map((act: any) => (
+              {b2Activities.map((act) => (
                 <th key={act.id} style={{ padding: '12px', textAlign: 'center', color: 'var(--text-secondary)', fontWeight: '500', borderBottom: '1px solid var(--surface-border)', position: 'relative' }}>
                   <button onClick={() => handleDeleteActivity(act.id)} style={{ position: 'absolute', top: '4px', right: '4px', background: 'none', border: 'none', color: 'rgba(239, 68, 68, 0.6)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px' }} title="Excluir Atividade" onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'} onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(239, 68, 68, 0.6)'}>
                     <X size={12} strokeWidth={3} />
@@ -263,7 +264,7 @@ export default function GradesTab({ classData }: { classData: any }) {
                    -
                 </th>
               ) : (
-                afActivities.map((act: any) => (
+                afActivities.map((act) => (
                   <th key={act.id} style={{ padding: '12px', textAlign: 'center', color: '#f59e0b', fontWeight: '500', borderBottom: '1px solid var(--surface-border)', position: 'relative', borderRight: '1px solid var(--surface-border)' }}>
                     <button onClick={() => handleDeleteActivity(act.id)} style={{ position: 'absolute', top: '4px', right: '4px', background: 'none', border: 'none', color: 'rgba(239, 68, 68, 0.6)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px' }} title="Excluir Atividade" onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'} onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(239, 68, 68, 0.6)'}>
                       <X size={12} strokeWidth={3} />
@@ -277,7 +278,7 @@ export default function GradesTab({ classData }: { classData: any }) {
             </tr>
           </thead>
           <tbody>
-            {classData.enrollments.map((enrollment: any, index: number) => {
+            {classData.enrollments.map((enrollment, index: number) => {
               const avgs = calculateFinalAvg(enrollment.id)
               const isApproved = parseFloat(avgs.final) >= 6.0
 
@@ -312,7 +313,7 @@ export default function GradesTab({ classData }: { classData: any }) {
                   </td>
                   
                   {/* B1 Activities */}
-                  {b1Activities.map((act: any) => (
+                  {b1Activities.map((act) => (
                     <td key={act.id} style={{ padding: '12px', textAlign: 'center' }}>
                       <input 
                         type="number" min="0" max="10" step="0.1"
@@ -325,7 +326,7 @@ export default function GradesTab({ classData }: { classData: any }) {
                   <td style={{ padding: '12px', textAlign: 'center', fontWeight: 'bold', color: 'var(--text-secondary)', borderRight: '1px solid var(--surface-border)' }}>{avgs.b1Avg}</td>
 
                   {/* B2 Activities */}
-                  {b2Activities.map((act: any) => (
+                  {b2Activities.map((act) => (
                     <td key={act.id} style={{ padding: '12px', textAlign: 'center' }}>
                       <input 
                         type="number" min="0" max="10" step="0.1"
@@ -343,7 +344,7 @@ export default function GradesTab({ classData }: { classData: any }) {
                        -
                     </td>
                   ) : (
-                    afActivities.map((act: any) => (
+                    afActivities.map((act) => (
                       <td key={act.id} style={{ padding: '12px', textAlign: 'center', borderRight: '1px solid var(--surface-border)' }}>
                         <input 
                           type="number" min="0" max="10" step="0.1"

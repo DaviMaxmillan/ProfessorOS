@@ -2,8 +2,12 @@
 
 import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/prisma'
+import { requireAuth } from '@/lib/auth'
+import { errorMessage } from '@/lib/errors'
 
 export async function createGroupWorkAction(classId: string, name: string, description: string, weight: number, createActivity: boolean) {
+  await requireAuth()
+
   try {
     let activityId = null
     
@@ -30,12 +34,14 @@ export async function createGroupWorkAction(classId: string, name: string, descr
 
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao criar trabalho em grupo: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao criar trabalho em grupo: ${errorMessage(error)}` }
   }
 }
 
 export async function updateGroupWorkAction(groupWorkId: string, name: string, description: string, weight: number) {
+  await requireAuth()
+
   try {
     const gw = await prisma.groupWork.findUnique({ where: { id: groupWorkId }, include: { activity: true } })
     if (!gw) return { success: false, message: 'Trabalho não encontrado' }
@@ -54,12 +60,14 @@ export async function updateGroupWorkAction(groupWorkId: string, name: string, d
 
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao atualizar: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao atualizar: ${errorMessage(error)}` }
   }
 }
 
 export async function deleteGroupWorkAction(groupWorkId: string) {
+  await requireAuth()
+
   try {
     const gw = await prisma.groupWork.findUnique({ where: { id: groupWorkId } })
     if (gw?.activityId) {
@@ -71,12 +79,14 @@ export async function deleteGroupWorkAction(groupWorkId: string) {
     
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao excluir: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao excluir: ${errorMessage(error)}` }
   }
 }
 
 export async function createGroupAction(groupWorkId: string, name: string, theme: string) {
+  await requireAuth()
+
   try {
     await prisma.group.create({
       data: {
@@ -87,12 +97,14 @@ export async function createGroupAction(groupWorkId: string, name: string, theme
     })
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao criar grupo: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao criar grupo: ${errorMessage(error)}` }
   }
 }
 
 export async function updateGroupAction(groupId: string, name: string, theme: string) {
+  await requireAuth()
+
   try {
     await prisma.group.update({
       where: { id: groupId },
@@ -100,22 +112,26 @@ export async function updateGroupAction(groupId: string, name: string, theme: st
     })
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao atualizar grupo: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao atualizar grupo: ${errorMessage(error)}` }
   }
 }
 
 export async function deleteGroupAction(groupId: string) {
+  await requireAuth()
+
   try {
     await prisma.group.delete({ where: { id: groupId } })
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao excluir grupo: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao excluir grupo: ${errorMessage(error)}` }
   }
 }
 
 export async function addMemberToGroupAction(groupId: string, enrollmentId: string) {
+  await requireAuth()
+
   try {
     await prisma.groupMember.create({
       data: {
@@ -125,23 +141,27 @@ export async function addMemberToGroupAction(groupId: string, enrollmentId: stri
     })
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao adicionar aluno: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao adicionar aluno: ${errorMessage(error)}` }
   }
 }
 
 export async function removeMemberFromGroupAction(memberId: string) {
+  await requireAuth()
+
   try {
     await prisma.groupMember.delete({ where: { id: memberId } })
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao remover aluno: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao remover aluno: ${errorMessage(error)}` }
   }
 }
 
 // Action to grade an entire group at once
 export async function gradeGroupAction(groupId: string, gradeValue: number, notes: string) {
+  await requireAuth()
+
   try {
     const group = await prisma.group.findUnique({
       where: { id: groupId },
@@ -184,13 +204,15 @@ export async function gradeGroupAction(groupId: string, gradeValue: number, note
     
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao lançar notas: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao lançar notas: ${errorMessage(error)}` }
   }
 }
 
 // Action to generate random groups
 export async function generateRandomGroupsAction(groupWorkId: string, groupCount: number, availableEnrollmentIds: string[]) {
+  await requireAuth()
+
   try {
     if (groupCount <= 0 || availableEnrollmentIds.length === 0) {
       return { success: false, message: 'Quantidade inválida ou sem alunos.' }
@@ -226,7 +248,7 @@ export async function generateRandomGroupsAction(groupWorkId: string, groupCount
     
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: `Erro ao sortear grupos: ${error.message}` }
+  } catch (error) {
+    return { success: false, message: `Erro ao sortear grupos: ${errorMessage(error)}` }
   }
 }

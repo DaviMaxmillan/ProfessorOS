@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Search, X, BookOpen, Users, GraduationCap } from 'lucide-react'
+import { Search, BookOpen, GraduationCap } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 type SearchResult = {
@@ -21,48 +21,73 @@ export default function GlobalSearch() {
   const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
-  // Open on Ctrl+K / Cmd+K
+  // Abrir e fechar limpam o estado aqui, e não num efeito que observa isOpen:
+  // reagir à própria mudança de estado provoca uma renderização em cascata.
+  const openSearch = useCallback(() => {
+    setQuery('')
+    setResults([])
+    setActiveIndex(0)
+    setIsOpen(true)
+    setTimeout(() => inputRef.current?.focus(), 50)
+  }, [])
+
+  const closeSearch = useCallback(() => {
+    setIsOpen(false)
+  }, [])
+
+  // Abrir com Ctrl+K / Cmd+K
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault()
-        setIsOpen(prev => !prev)
+        if (isOpen) closeSearch()
+        else openSearch()
       }
-      if (e.key === 'Escape') setIsOpen(false)
+      if (e.key === 'Escape') closeSearch()
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [])
+  }, [isOpen, openSearch, closeSearch])
 
-  // Focus input when opened
+  // Busca com debounce
   useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 50)
-      setQuery('')
-      setResults([])
-      setActiveIndex(0)
-    }
-  }, [isOpen])
+    const termo = query.trim()
+    if (!termo) return
 
-  // Search with debounce
-  useEffect(() => {
-    if (!query.trim()) {
-      setResults([])
-      return
-    }
+    let cancelado = false
+
     const timer = setTimeout(async () => {
       setIsLoading(true)
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`)
-        const data = await res.json()
-        setResults(data)
+        const res = await fetch(`/api/search?q=${encodeURIComponent(termo)}`)
+
+        // A rota responde 401 quando a sessão expira, com um objeto de erro no
+        // corpo. Sem essas duas checagens esse objeto virava o estado
+        // `results` e a próxima renderização quebrava no `.map`.
+        if (!res.ok) return
+
+        const data: unknown = await res.json()
+        if (cancelado || !Array.isArray(data)) return
+
+        setResults(data as SearchResult[])
         setActiveIndex(0)
+      } catch {
+        // Rede indisponível: mantém os resultados anteriores em vez de quebrar.
       } finally {
-        setIsLoading(false)
+        if (!cancelado) setIsLoading(false)
       }
     }, 250)
-    return () => clearTimeout(timer)
+
+    // Cancela a resposta em voo junto com o timer: sem isso, uma busca mais
+    // antiga podia chegar depois e sobrescrever o resultado da mais recente.
+    return () => {
+      cancelado = true
+      clearTimeout(timer)
+    }
   }, [query])
+
+  // Sem termo digitado não há o que listar — derivado, não guardado em estado.
+  const visibleResults = query.trim() ? results : []
 
   const navigate = useCallback((href: string) => {
     setIsOpen(false)
@@ -72,12 +97,12 @@ export default function GlobalSearch() {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setActiveIndex(i => Math.min(i + 1, results.length - 1))
+      setActiveIndex(i => Math.min(i + 1, visibleResults.length - 1))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       setActiveIndex(i => Math.max(i - 1, 0))
-    } else if (e.key === 'Enter' && results[activeIndex]) {
-      navigate(results[activeIndex].href)
+    } else if (e.key === 'Enter' && visibleResults[activeIndex]) {
+      navigate(visibleResults[activeIndex].href)
     }
   }
 
@@ -85,7 +110,7 @@ export default function GlobalSearch() {
 
   return (
     <div
-      onClick={() => setIsOpen(false)}
+      onClick={closeSearch}
       style={{
         position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
         backdropFilter: 'blur(4px)', zIndex: 1000,
@@ -120,16 +145,16 @@ export default function GlobalSearch() {
             <div style={{ width: '16px', height: '16px', border: '2px solid var(--surface-border)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.6s linear infinite', flexShrink: 0 }} />
           )}
           {!isLoading && (
-            <button onClick={() => setIsOpen(false)} style={{ background: 'none', border: '1px solid var(--surface-border)', color: 'var(--text-secondary)', borderRadius: '6px', padding: '2px 6px', cursor: 'pointer', fontSize: '0.75rem' }}>
+            <button onClick={closeSearch} style={{ background: 'none', border: '1px solid var(--surface-border)', color: 'var(--text-secondary)', borderRadius: '6px', padding: '2px 6px', cursor: 'pointer', fontSize: '0.75rem' }}>
               ESC
             </button>
           )}
         </div>
 
         {/* Results */}
-        {results.length > 0 && (
+        {visibleResults.length > 0 && (
           <div style={{ maxHeight: '380px', overflowY: 'auto' }}>
-            {results.map((result, i) => (
+            {visibleResults.map((result, i) => (
               <button
                 key={result.id}
                 onClick={() => navigate(result.href)}
@@ -162,10 +187,10 @@ export default function GlobalSearch() {
         )}
 
         {/* Empty state */}
-        {query.trim() && !isLoading && results.length === 0 && (
+        {query.trim() && !isLoading && visibleResults.length === 0 && (
           <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)' }}>
             <Search size={32} style={{ opacity: 0.3, marginBottom: '8px' }} />
-            <p>Nenhum resultado para "<strong>{query}</strong>"</p>
+            <p>Nenhum resultado para “<strong>{query}</strong>”</p>
           </div>
         )}
 

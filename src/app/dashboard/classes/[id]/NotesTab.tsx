@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Plus, Pin, Trash2, Edit2, Check, X, Search, ALargeSmall, FileSpreadsheet } from 'lucide-react'
+import { Plus, Trash2, Edit2, Check, Search, ALargeSmall, FileSpreadsheet } from 'lucide-react'
 import { createNoteAction, updateNoteAction, deleteNoteAction } from '@/app/actions/notes'
 import { buildNotesSheet, exportSheetXLSX } from '@/lib/exportClass'
+import type { ClassDetail, ClassNoteDetail, NoteInput } from '@/lib/types'
 
 const LABELS = [
   { value: 'recado',   emoji: '📣', label: 'Recado',   color: '#60a5fa' },
@@ -43,8 +44,8 @@ function parseInline(text: string) {
 }
 
 function NoteCard({ note, onSave, onDelete, onTogglePin }: {
-  note: any
-  onSave: (id: string, data: any) => void
+  note: ClassNoteDetail
+  onSave: (id: string, data: NoteInput) => void
   onDelete: (id: string) => void
   onTogglePin: (id: string, pinned: boolean) => void
 }) {
@@ -206,8 +207,8 @@ function NoteCard({ note, onSave, onDelete, onTogglePin }: {
   )
 }
 
-export default function NotesTab({ classData }: { classData: any }) {
-  const [notes, setNotes] = useState<any[]>(classData.classNotes || [])
+export default function NotesTab({ classData }: { classData: ClassDetail }) {
+  const [notes, setNotes] = useState<ClassNoteDetail[]>(classData.classNotes || [])
   const [isCreating, setIsCreating] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterLabel, setFilterLabel] = useState('')
@@ -228,24 +229,14 @@ export default function NotesTab({ classData }: { classData: any }) {
       label: newLabel,
       fontSize: newFontSize,
     })
-    if (res.success) {
-      // Optimistic update
-      setNotes(prev => [{
-        id: `temp-${Date.now()}`,
-        title: newTitle,
-        content: newContent,
-        color: newColor,
-        label: newLabel,
-        fontSize: newFontSize,
-        pinned: false,
-        createdAt: new Date().toISOString(),
-      }, ...prev])
+    if (res.success && res.note) {
+      setNotes(prev => [res.note, ...prev])
       setIsCreating(false)
       setNewTitle(''); setNewContent(''); setNewColor(''); setNewLabel(''); setNewFontSize(14)
     }
   }
 
-  const handleSave = async (id: string, data: any) => {
+  const handleSave = async (id: string, data: NoteInput) => {
     await updateNoteAction(id, data)
     setNotes(prev => prev.map(n => n.id === id ? { ...n, ...data } : n))
   }

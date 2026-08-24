@@ -1,8 +1,16 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Palette, Type, Check, RefreshCw, Sun, Moon } from 'lucide-react'
 import { saveThemeAction } from '@/app/actions/settings'
+import {
+  DEFAULT_PREFERENCES,
+  setAccent,
+  setFont,
+  setTheme,
+  usePreferences,
+  type Theme,
+} from '@/lib/preferences'
 
 const ACCENT_COLORS = [
   { label: 'Roxo (Padrão)', value: '#6366f1' },
@@ -21,56 +29,33 @@ const FONTS = [
 ]
 
 export default function SettingsPage() {
-  const [currentAccent, setCurrentAccent] = useState('#6366f1')
-  const [currentFont, setCurrentFont] = useState("'Inter', sans-serif")
-  const [currentTheme, setCurrentTheme] = useState<'dark' | 'light'>('dark')
+  const {
+    accent: currentAccent,
+    font: currentFont,
+    theme: currentTheme,
+  } = usePreferences()
   const [showSavedMsg, setShowSavedMsg] = useState(false)
 
-  useEffect(() => {
-    const savedColor = localStorage.getItem('professoros_accent_color')
-    if (savedColor) setCurrentAccent(savedColor)
-
-    const savedFont = localStorage.getItem('professoros_font_family')
-    if (savedFont) setCurrentFont(savedFont)
-
-    // Read theme from html attribute
-    const t = document.documentElement.getAttribute('data-theme') as 'dark' | 'light'
-    if (t) setCurrentTheme(t)
-  }, [])
-
   const applyColor = (color: string) => {
-    setCurrentAccent(color)
-    localStorage.setItem('professoros_accent_color', color)
-    document.documentElement.style.setProperty('--accent', color)
-    
-    // Convert hex to rgb for glow
-    const hex = color.replace('#', '')
-    const r = parseInt(hex.substring(0,2), 16)
-    const g = parseInt(hex.substring(2,4), 16)
-    const b = parseInt(hex.substring(4,6), 16)
-    document.documentElement.style.setProperty('--accent-glow', `rgba(${r}, ${g}, ${b}, 0.3)`)
-    
+    setAccent(color)
     showSaved()
   }
 
   const applyFont = (font: string) => {
-    setCurrentFont(font)
-    localStorage.setItem('professoros_font_family', font)
-    document.documentElement.style.setProperty('--font-primary', font)
+    setFont(font)
     showSaved()
   }
 
-  const applyTheme = async (t: 'dark' | 'light') => {
-    setCurrentTheme(t)
-    document.documentElement.setAttribute('data-theme', t)
+  const applyTheme = async (t: Theme) => {
+    setTheme(t)
     await saveThemeAction(t)
     showSaved()
   }
 
   const resetDefaults = () => {
-    applyColor('#6366f1')
-    applyFont("'Inter', sans-serif")
-    applyTheme('dark')
+    applyColor(DEFAULT_PREFERENCES.accent)
+    applyFont(DEFAULT_PREFERENCES.font)
+    applyTheme(DEFAULT_PREFERENCES.theme)
   }
 
   const showSaved = () => {

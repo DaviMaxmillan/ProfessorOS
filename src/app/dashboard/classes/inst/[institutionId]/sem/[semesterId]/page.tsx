@@ -3,15 +3,19 @@ export const dynamic = 'force-dynamic'
 import prisma from '@/lib/prisma'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ChevronRight, ArrowLeft, BookOpen, Users, Clock } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import CreateClassForm from '../../../../CreateClassForm'
 import ClassSortableList from '../../../../ClassSortableList'
+import { requireAuth } from '@/lib/auth'
+import { classSortableInclude } from '@/lib/types'
 
 export default async function SemesterClassesPage({
   params
 }: {
   params: Promise<{ institutionId: string; semesterId: string }>
 }) {
+  await requireAuth()
+
   const { institutionId, semesterId } = await params
 
   const [semester, semesters, institutions] = await Promise.all([
@@ -31,10 +35,7 @@ export default async function SemesterClassesPage({
       semesterId,
       institutionId: institutionId === 'none' ? null : institutionId
     },
-    include: {
-      subject: true,
-      _count: { select: { enrollments: true } }
-    },
+    include: classSortableInclude,
     orderBy: { order: 'asc' }
   })
 

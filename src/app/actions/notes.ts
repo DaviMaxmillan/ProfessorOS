@@ -2,16 +2,19 @@
 
 import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/prisma'
+import { requireAuth } from '@/lib/auth'
+import { errorMessage } from '@/lib/errors'
+import type { NoteCreateInput, NoteInput } from '@/lib/types'
 
-export async function createNoteAction(classId: string, data: {
-  title?: string
-  content: string
-  color?: string
-  label?: string
-  fontSize?: number
-}) {
+export async function createNoteAction(classId: string, data: NoteCreateInput) {
+  await requireAuth()
+
   try {
-    await prisma.classNote.create({
+    // Devolve o recado criado para que a tela use o id real. Antes a action
+    // respondia apenas { success: true } e o cliente inventava um id
+    // provisório ("temp-..."), que ia parar em editar/excluir se o professor
+    // mexesse no recado antes de a página recarregar.
+    const note = await prisma.classNote.create({
       data: {
         classId,
         title: data.title || null,
@@ -22,20 +25,15 @@ export async function createNoteAction(classId: string, data: {
       }
     })
     revalidatePath('/dashboard/classes/[id]', 'page')
-    return { success: true }
-  } catch (error: any) {
-    return { success: false, message: error.message }
+    return { success: true, note }
+  } catch (error) {
+    return { success: false, message: errorMessage(error) }
   }
 }
 
-export async function updateNoteAction(noteId: string, data: {
-  title?: string
-  content?: string
-  color?: string
-  label?: string
-  fontSize?: number
-  pinned?: boolean
-}) {
+export async function updateNoteAction(noteId: string, data: NoteInput) {
+  await requireAuth()
+
   try {
     await prisma.classNote.update({
       where: { id: noteId },
@@ -50,17 +48,19 @@ export async function updateNoteAction(noteId: string, data: {
     })
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: error.message }
+  } catch (error) {
+    return { success: false, message: errorMessage(error) }
   }
 }
 
 export async function deleteNoteAction(noteId: string) {
+  await requireAuth()
+
   try {
     await prisma.classNote.delete({ where: { id: noteId } })
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: error.message }
+  } catch (error) {
+    return { success: false, message: errorMessage(error) }
   }
 }

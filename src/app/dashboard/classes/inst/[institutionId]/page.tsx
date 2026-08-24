@@ -5,8 +5,11 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronRight, ArrowLeft, Calendar } from 'lucide-react'
 import CreateSemesterButton from '../../CreateSemesterButton'
+import { requireAuth } from '@/lib/auth'
 
 export default async function InstitutionPage({ params }: { params: Promise<{ institutionId: string }> }) {
+  await requireAuth()
+
   const { institutionId } = await params
 
   let institutionName = 'Sem Instituição'
@@ -66,7 +69,7 @@ export default async function InstitutionPage({ params }: { params: Promise<{ in
           <div className="glass-panel" style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-secondary)' }}>
             <Calendar size={48} style={{ margin: '0 auto 16px', opacity: 0.4 }} />
             <p style={{ marginBottom: '8px' }}>Nenhum semestre cadastrado ainda.</p>
-            <p style={{ fontSize: '0.9rem' }}>Use o botão "Novo Semestre" para criar o primeiro semestre desta instituição.</p>
+            <p style={{ fontSize: '0.9rem' }}>Use o botão “Novo Semestre” para criar o primeiro semestre desta instituição.</p>
           </div>
         ) : (
           semesters.map((sem) => (

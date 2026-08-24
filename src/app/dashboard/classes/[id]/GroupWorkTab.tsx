@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Users, Plus, Trash2, Edit2, Settings, Shuffle, GraduationCap, FileSpreadsheet } from 'lucide-react'
+import { Users, Plus, Trash2, Edit2, Shuffle, GraduationCap, FileSpreadsheet } from 'lucide-react'
 import { 
   createGroupWorkAction, 
   deleteGroupWorkAction, 
@@ -14,9 +14,10 @@ import {
   updateGroupWorkAction
 } from '@/app/actions/groupwork'
 import { buildGroupsSheet, exportSheetXLSX } from '@/lib/exportClass'
+import type { ClassDetail, GroupWorkDetail } from '@/lib/types'
 
-export default function GroupWorkTab({ classData }: { classData: any }) {
-  const [selectedGroupWork, setSelectedGroupWork] = useState<any>(null)
+export default function GroupWorkTab({ classData }: { classData: ClassDetail }) {
+  const [selectedGroupWork, setSelectedGroupWork] = useState<GroupWorkDetail | null>(null)
   const [isCreatingGW, setIsCreatingGW] = useState(false)
   const [newGwName, setNewGwName] = useState('')
   const [newGwDesc, setNewGwDesc] = useState('')
@@ -43,7 +44,7 @@ export default function GroupWorkTab({ classData }: { classData: any }) {
   }
 
   // Se tem um selecionado, precisamos achar a versão atualizada dele no classData
-  const activeGW = classData.groupWorks?.find((gw: any) => gw.id === (selectedGroupWork?.id || ''))
+  const activeGW = classData.groupWorks?.find((gw) => gw.id === (selectedGroupWork?.id || ''))
 
   return (
     <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
@@ -113,7 +114,7 @@ export default function GroupWorkTab({ classData }: { classData: any }) {
           {classData.groupWorks?.length === 0 && !isCreatingGW && (
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', textAlign: 'center', padding: '20px 0' }}>Nenhum trabalho criado.</p>
           )}
-          {classData.groupWorks?.map((gw: any) => (
+          {classData.groupWorks?.map((gw) => (
             <div 
               key={gw.id}
               onClick={() => setSelectedGroupWork(gw)}
@@ -162,7 +163,7 @@ export default function GroupWorkTab({ classData }: { classData: any }) {
   )
 }
 
-function GroupWorkManager({ gw, classData }: { gw: any, classData: any }) {
+function GroupWorkManager({ gw, classData }: { gw: GroupWorkDetail, classData: ClassDetail }) {
   const [newGroupName, setNewGroupName] = useState('')
   const [isRandomizing, setIsRandomizing] = useState(false)
   const [randomCount, setRandomCount] = useState('3')
@@ -179,9 +180,9 @@ function GroupWorkManager({ gw, classData }: { gw: any, classData: any }) {
   const [gradeNotes, setGradeNotes] = useState('')
 
   // Identify unassigned students (excluding inactive/dropout)
-  const assignedEnrollmentIds = new Set(gw.groups?.flatMap((g: any) => g.members.map((m: any) => m.enrollmentId)))
+  const assignedEnrollmentIds = new Set(gw.groups?.flatMap((g) => g.members.map((m) => m.enrollmentId)))
   const unassignedEnrollments = classData.enrollments.filter(
-    (e: any) => !assignedEnrollmentIds.has(e.id) && e.status !== 'INATIVO' && e.status !== 'DESISTENTE'
+    (e) => !assignedEnrollmentIds.has(e.id) && e.status !== 'INATIVO' && e.status !== 'DESISTENTE'
   )
 
   const handleCreateGroup = async () => {
@@ -195,7 +196,7 @@ function GroupWorkManager({ gw, classData }: { gw: any, classData: any }) {
     const count = parseInt(randomCount)
     if (isNaN(count) || count <= 0) return alert('Quantidade inválida.')
     
-    await generateRandomGroupsAction(gw.id, count, unassignedEnrollments.map((e: any) => e.id))
+    await generateRandomGroupsAction(gw.id, count, unassignedEnrollments.map((e) => e.id))
     setIsRandomizing(false)
   }
 
@@ -237,7 +238,7 @@ function GroupWorkManager({ gw, classData }: { gw: any, classData: any }) {
               <div>
                 <h2 style={{ fontSize: '1.5rem', marginBottom: '8px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   {gw.name}
-                  {gw.activityId && <span style={{ fontSize: '0.8rem', background: 'rgba(99,102,241,0.2)', color: 'var(--accent)', padding: '2px 8px', borderRadius: '12px' }}>Peso {gw.activity.weight}</span>}
+                  {gw.activity && <span style={{ fontSize: '0.8rem', background: 'rgba(99,102,241,0.2)', color: 'var(--accent)', padding: '2px 8px', borderRadius: '12px' }}>Peso {gw.activity.weight}</span>}
                 </h2>
                 {gw.description && <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>{gw.description}</p>}
               </div>
@@ -302,7 +303,7 @@ function GroupWorkManager({ gw, classData }: { gw: any, classData: any }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '24px' }}>
         {/* Lista de Grupos */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {gw.groups?.map((group: any) => (
+          {gw.groups?.map((group) => (
             <div key={group.id} className="glass-panel" style={{ padding: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                 <div>
@@ -356,7 +357,7 @@ function GroupWorkManager({ gw, classData }: { gw: any, classData: any }) {
               {/* Members List */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 {group.members?.length === 0 && <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>Nenhum aluno neste grupo.</p>}
-                {group.members?.map((member: any) => (
+                {group.members?.map((member) => (
                   <div key={member.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: '4px' }}>
                     <span style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>{member.enrollment.student.name}</span>
                     <button onClick={() => handleRemoveMember(member.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', opacity: 0.7 }}>
@@ -380,11 +381,11 @@ function GroupWorkManager({ gw, classData }: { gw: any, classData: any }) {
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Crie um grupo primeiro para adicionar alunos.</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '500px', overflowY: 'auto', paddingRight: '8px' }}>
-              {unassignedEnrollments.map((enr: any) => (
+              {unassignedEnrollments.map((enr) => (
                 <div key={enr.id} style={{ background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '6px', border: '1px solid var(--surface-border)' }}>
                   <div style={{ fontSize: '0.9rem', color: '#fff', marginBottom: '8px' }}>{enr.student.name}</div>
                   <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                    {gw.groups?.map((g: any) => (
+                    {gw.groups?.map((g) => (
                       <button 
                         key={g.id}
                         onClick={() => handleAssign(g.id, enr.id)}

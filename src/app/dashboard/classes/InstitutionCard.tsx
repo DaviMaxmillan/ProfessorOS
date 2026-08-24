@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Building2, BookOpen, ChevronRight, Edit, Trash2, Check, X } from 'lucide-react'
+import { Building2, ChevronRight, Edit, Trash2, Check, X } from 'lucide-react'
 import { deleteInstitutionAction, updateInstitutionAction } from '@/app/actions/classes'
 
 type Institution = {

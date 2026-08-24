@@ -2,8 +2,12 @@
 
 import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { requireAuth } from '@/lib/auth'
+import { errorMessage } from '@/lib/errors'
 
 export async function createSpecialNeedCategoryAction(data: { name: string, color: string, icon?: string }) {
+  await requireAuth()
+
   try {
     const cat = await prisma.specialNeedCategory.create({
       data: {
@@ -14,26 +18,30 @@ export async function createSpecialNeedCategoryAction(data: { name: string, colo
     })
     revalidatePath('/dashboard/special-needs')
     return { success: true, category: cat }
-  } catch (error: any) {
+  } catch (error) {
     console.error(error)
-    return { success: false, message: error.message || 'Erro ao criar categoria' }
+    return { success: false, message: errorMessage(error) || 'Erro ao criar categoria' }
   }
 }
 
 export async function deleteSpecialNeedCategoryAction(id: string) {
+  await requireAuth()
+
   try {
     await prisma.specialNeedCategory.delete({
       where: { id }
     })
     revalidatePath('/dashboard/special-needs')
     return { success: true }
-  } catch (error: any) {
+  } catch (error) {
     console.error(error)
-    return { success: false, message: error.message || 'Erro ao excluir categoria' }
+    return { success: false, message: errorMessage(error) || 'Erro ao excluir categoria' }
   }
 }
 
 export async function ensureSpecialNeedCategoriesMigratedAction() {
+  await requireAuth()
+
   try {
     const hardcoded = [
       { name: 'Saúde', color: '#ef4444', value: 'SAUDE', icon: '🔴' },
@@ -71,8 +79,8 @@ export async function ensureSpecialNeedCategoriesMigratedAction() {
     }
 
     return { success: true }
-  } catch (error: any) {
+  } catch (error) {
     console.error("Migration error:", error)
-    return { success: false, message: error.message }
+    return { success: false, message: errorMessage(error) }
   }
 }

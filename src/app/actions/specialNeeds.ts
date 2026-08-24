@@ -2,10 +2,14 @@
 
 import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { requireAuth } from '@/lib/auth'
+import { isPrismaErrorCode } from '@/lib/errors'
 
 // ---- Special Needs (categories) ----
 
 export async function getSpecialNeedsAction() {
+  await requireAuth()
+
   return prisma.specialNeed.findMany({
     include: {
       _count: { select: { studentNeeds: true } }
@@ -21,12 +25,16 @@ export async function createSpecialNeedAction(data: {
   color: string
   actions?: string
 }) {
+  await requireAuth()
+
   await prisma.specialNeed.create({ data })
   revalidatePath('/dashboard/special-needs')
   return { success: true }
 }
 
 export async function deleteSpecialNeedAction(id: string) {
+  await requireAuth()
+
   await prisma.specialNeed.delete({ where: { id } })
   revalidatePath('/dashboard/special-needs')
   return { success: true }
@@ -39,6 +47,8 @@ export async function updateSpecialNeedAction(id: string, data: {
   color?: string
   actions?: string
 }) {
+  await requireAuth()
+
   await prisma.specialNeed.update({ where: { id }, data })
   revalidatePath('/dashboard/special-needs')
   return { success: true }
@@ -47,6 +57,8 @@ export async function updateSpecialNeedAction(id: string, data: {
 // ---- Student <-> Need associations (per enrollment/class) ----
 
 export async function getStudentNeedsAction(specialNeedId?: string) {
+  await requireAuth()
+
   return prisma.studentSpecialNeed.findMany({
     where: specialNeedId ? { specialNeedId } : undefined,
     include: {
@@ -70,6 +82,8 @@ export async function addStudentNeedAction(data: {
   startDate?: string
   endDate?: string
 }) {
+  await requireAuth()
+
   try {
     await prisma.studentSpecialNeed.create({
       data: {
@@ -83,32 +97,38 @@ export async function addStudentNeedAction(data: {
     })
     revalidatePath('/dashboard/special-needs')
     return { success: true }
-  } catch (e: any) {
-    if (e.code === 'P2002') return { success: false, message: 'Este aluno já está associado a essa necessidade nesta turma.' }
+  } catch (error) {
+    if (isPrismaErrorCode(error, 'P2002')) return { success: false, message: 'Este aluno já está associado a essa necessidade nesta turma.' }
     return { success: false, message: 'Erro ao adicionar.' }
   }
 }
 
 export async function removeStudentNeedAction(id: string) {
+  await requireAuth()
+
   await prisma.studentSpecialNeed.delete({ where: { id } })
   revalidatePath('/dashboard/special-needs')
   return { success: true }
 }
 
 export async function toggleStudentNeedActiveAction(id: string, active: boolean) {
+  await requireAuth()
+
   await prisma.studentSpecialNeed.update({ where: { id }, data: { active } })
   revalidatePath('/dashboard/special-needs')
   return { success: true }
 }
 
 export async function searchEnrollmentsAction(query: string) {
+  await requireAuth()
+
   if (!query || query.length < 2) return []
   return prisma.enrollment.findMany({
     where: {
       student: {
         OR: [
-          { name: { contains: query } },
-          { rgm: { contains: query } },
+          { name: { contains: query, mode: 'insensitive' } },
+          { rgm: { contains: query, mode: 'insensitive' } },
         ]
       }
     },

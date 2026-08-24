@@ -21,9 +21,10 @@ import { CSS } from '@dnd-kit/utilities'
 import Link from 'next/link'
 import { ChevronRight, BookOpen, Users, Clock, GripVertical } from 'lucide-react'
 import { updateClassOrderAction } from '@/app/actions/classes'
+import type { ClassSortable } from '@/lib/types'
 
 interface ClassSortableItemProps {
-  c: any
+  c: ClassSortable
 }
 
 function SortableItem({ c }: ClassSortableItemProps) {
@@ -98,7 +99,7 @@ function SortableItem({ c }: ClassSortableItemProps) {
   )
 }
 
-export default function ClassSortableList({ initialClasses }: { initialClasses: any[] }) {
+export default function ClassSortableList({ initialClasses }: { initialClasses: ClassSortable[] }) {
   const [classes, setClasses] = useState(initialClasses)
 
   const sensors = useSensors(
@@ -135,7 +136,7 @@ export default function ClassSortableList({ initialClasses }: { initialClasses: 
       <div className="glass-panel" style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-secondary)' }}>
         <BookOpen size={48} style={{ margin: '0 auto 16px', opacity: 0.4 }} />
         <p style={{ marginBottom: '8px' }}>Nenhuma turma neste semestre.</p>
-        <p style={{ fontSize: '0.85rem' }}>Clique em "Nova Turma" para adicionar.</p>
+        <p style={{ fontSize: '0.85rem' }}>Clique em “Nova Turma” para adicionar.</p>
       </div>
     )
   }

@@ -1,13 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { DownloadCloud, Edit, Trash2, FileSpreadsheet, ChevronDown } from 'lucide-react'
+import { DownloadCloud, Edit, Trash2, FileSpreadsheet } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { deleteClassAction, updateClassAction } from '@/app/actions/classes'
 import { exportAllXLSX } from '@/lib/exportClass'
+import type { ClassDetail } from '@/lib/types'
 
-export default function ClassHeader({ classData }: { classData: any }) {
+export default function ClassHeader({ classData }: { classData: ClassDetail }) {
   const router = useRouter()
   const [isEditing, setIsEditing] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -131,8 +132,8 @@ export default function ClassHeader({ classData }: { classData: any }) {
   )
 }
 
-function QuickStats({ classData }: { classData: any }) {
-  const activeEnrollments = classData.enrollments.filter((e: any) => !e.status || e.status === 'ATIVO')
+function QuickStats({ classData }: { classData: ClassDetail }) {
+  const activeEnrollments = classData.enrollments.filter((e) => !e.status || e.status === 'ATIVO')
   const total = activeEnrollments.length
 
   // Calculate estimated averages from grades
@@ -140,10 +141,10 @@ function QuickStats({ classData }: { classData: any }) {
   let passCount = 0
   let validCount = 0
 
-  activeEnrollments.forEach((e: any) => {
+  activeEnrollments.forEach((e) => {
     if (e.grades && e.grades.length > 0) {
       let gradeSum = 0
-      e.grades.forEach((g: any) => { gradeSum += g.value })
+      e.grades.forEach((g) => { gradeSum += g.value })
       const avg = classData.calculationMethod === 'AVERAGE'
         ? gradeSum / e.grades.length
         : gradeSum

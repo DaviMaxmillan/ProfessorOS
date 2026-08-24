@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import prisma from '@/lib/prisma'
 import Link from 'next/link'
 import { Search } from 'lucide-react'
+import { requireAuth } from '@/lib/auth'
 
 export default async function StudentsPage({
   searchParams,
@@ -11,13 +12,15 @@ export default async function StudentsPage({
     q?: string
   }
 }) {
+  await requireAuth()
+
   const query = searchParams?.q || ''
 
   const students = await prisma.student.findMany({
     where: {
       OR: [
-        { name: { contains: query } },
-        { rgm: { contains: query } }
+        { name: { contains: query, mode: 'insensitive' } },
+        { rgm: { contains: query, mode: 'insensitive' } }
       ]
     },
     include: {
