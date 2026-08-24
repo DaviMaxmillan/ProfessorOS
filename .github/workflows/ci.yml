@@ -58,10 +58,13 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+    # Sem NODE_ENV=production aqui: com essa variavel o `npm ci` pula as
+    # devDependencies, e tanto o prisma (usado pelo postinstall) quanto o
+    # playwright estao la. O `next build` ja constroi em modo producao por
+    # conta propria.
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/professoros_test?schema=public
       AUTH_SECRET: segredo-de-ci-com-mais-de-32-caracteres-aqui
-      NODE_ENV: production
 
     steps:
       - uses: actions/checkout@v4
