@@ -114,7 +114,9 @@ export type NoteCreateInput = NoteInput & { content: string }
 export const enrollmentWithClassInclude = Prisma.validator<Prisma.EnrollmentInclude>()({
   student: true,
   grades: true,
-  class: { include: { subject: true, semester: true, scheduleEntries: true } },
+  class: {
+    include: { subject: true, semester: true, scheduleEntries: true, activities: true },
+  },
 } satisfies Prisma.EnrollmentInclude)
 
 /** Matrícula com aluno, notas e a turma — as linhas do painel inicial. */

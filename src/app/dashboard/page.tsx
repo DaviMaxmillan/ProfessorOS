@@ -5,6 +5,7 @@ import { BookOpen, Users, Calendar, AlertTriangle, TrendingUp } from 'lucide-rea
 import Link from 'next/link'
 import { requireAuth } from '@/lib/auth'
 import { enrollmentWithClassInclude, type EnrollmentWithClass } from '@/lib/types'
+import { finalGradeOrNull, isPassing } from '@/lib/grades'
 
 export default async function DashboardPage() {
   await requireAuth()
@@ -35,11 +36,15 @@ export default async function DashboardPage() {
     const absenceRate = totalAulas > 0 ? enrollment.absences / totalAulas : 0
     const hasAbsenceRisk = absenceRate >= 0.25 && totalAulas > 0
 
-    const gradeSum = enrollment.grades.reduce((s, g) => s + g.value, 0)
-    const gradeAvg = enrollment.grades.length > 0
-      ? (enrollment.class.calculationMethod === 'AVERAGE' ? gradeSum / enrollment.grades.length : gradeSum)
-      : null
-    const hasGradeRisk = gradeAvg !== null && gradeAvg < 6
+    // Mesmo cálculo do diário de notas. Antes esta lista somava as notas cruas:
+    // com o método SUM a soma nunca ficava abaixo de 6, então nenhum aluno era
+    // sinalizado por nota baixa — o alerta simplesmente não funcionava.
+    const gradeAvg = finalGradeOrNull(
+      enrollment.class.activities,
+      enrollment.grades,
+      enrollment.class.calculationMethod
+    )
+    const hasGradeRisk = gradeAvg !== null && !isPassing(gradeAvg)
 
     if (hasAbsenceRisk || hasGradeRisk) {
       let reason = ''
@@ -203,10 +208,10 @@ function ApprovalDonut({ enrollments }: { enrollments: EnrollmentWithClass[] }) 
   let noData = 0
 
   enrollments.forEach(e => {
-    if (!e.grades || e.grades.length === 0) { noData++; return }
-    const sum = e.grades.reduce((s, g) => s + g.value, 0)
-    const avg = e.class.calculationMethod === 'AVERAGE' ? sum / e.grades.length : sum
-    if (avg >= 6) approved++
+    // Mesmo cálculo do diário de notas — ver src/lib/grades.ts.
+    const avg = finalGradeOrNull(e.class.activities, e.grades, e.class.calculationMethod)
+    if (avg === null) { noData++; return }
+    if (isPassing(avg)) approved++
     else failed++
   })
 

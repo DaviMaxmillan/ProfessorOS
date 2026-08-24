@@ -12,6 +12,12 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Script utilitário de uso único, em CommonJS — não é código da aplicação.
+    "add-dynamic.js",
+    // Artefatos de teste.
+    "playwright-report/**",
+    "test-results/**",
+    "coverage/**",
   ]),
 ]);
 

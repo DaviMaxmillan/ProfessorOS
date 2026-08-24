@@ -46,3 +46,8 @@ next-env.d.ts
 # sqlite databases
 *.db
 *.db-journal
+
+# artefatos de teste
+/playwright-report
+/test-results
+/coverage
