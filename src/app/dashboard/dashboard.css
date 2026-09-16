@@ -136,3 +136,96 @@
 
 .class-card:hover { border-color: var(--accent); }
 
+
+/* ---- Diário de notas: cabeçalho e coluna do aluno fixos ----
+ *
+ * Antes a área de rolagem crescia junto com a tabela, então a barra de
+ * rolagem horizontal ficava depois do último aluno: com uma turma grande era
+ * preciso descer a página inteira só para rolar de lado.
+ *
+ * Agora a área tem altura presa à janela, o cabeçalho fica fixo no topo e a
+ * coluna do aluno fica fixa à esquerda.
+ */
+
+:root {
+  /* Cor sólida equivalente ao painel. Células fixas precisam de fundo opaco,
+     senão as linhas passam por baixo e aparecem através delas. */
+  --grades-surface: #15181e;
+}
+
+[data-theme='light'] {
+  --grades-surface: #ffffff;
+}
+
+.grades-scroll {
+  max-height: calc(100vh - 300px);
+  min-height: 260px;
+  overflow: auto;
+}
+
+.grades-table {
+  width: 100%;
+  min-width: 800px;
+  /* `separate` é necessário: com `border-collapse: collapse` as bordas das
+     células fixas desaparecem ao rolar. */
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.grades-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
+/* As cores dos cabeçalhos são aplicadas como camada sobre o fundo opaco, para
+   ficarem idênticas às de antes sem depender de cálculo de transparência. */
+.grades-table thead th {
+  background-color: var(--grades-surface);
+  background-image: linear-gradient(rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.1));
+}
+
+.grades-table thead tr:first-child th {
+  background-image: linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2));
+}
+
+.grades-table thead tr:first-child th.head-bimestre {
+  background-image: linear-gradient(rgba(99, 102, 241, 0.1), rgba(99, 102, 241, 0.1));
+}
+
+.grades-table thead tr:first-child th.head-af {
+  background-image: linear-gradient(rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.1));
+}
+
+.grades-table .col-aluno {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background-color: var(--grades-surface);
+}
+
+/* O canto superior esquerdo fica fixo nos dois eixos, então precisa cobrir
+   tanto o cabeçalho quanto a coluna. */
+.grades-table thead .col-aluno {
+  z-index: 4;
+}
+
+/* Sombra sutil marcando onde a coluna fixa termina, para dar a sensação de
+   que o resto passa por baixo dela. */
+.grades-table .col-aluno::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 6px;
+  transform: translateX(100%);
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.18), transparent);
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .grades-scroll {
+    max-height: calc(100vh - 220px);
+  }
+}
