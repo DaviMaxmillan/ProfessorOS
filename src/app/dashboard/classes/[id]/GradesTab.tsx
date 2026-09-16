@@ -5,7 +5,7 @@ import { Plus, Calculator, Settings, X, Edit2, StickyNote, FileSpreadsheet } fro
 import { createActivityAction, saveGradesAction, updateClassCalculationMethod, deleteActivityAction, updateStudentNameAction, saveEnrollmentNotesAction } from '@/app/actions/diary'
 import { buildGradesSheet, exportSheetXLSX } from '@/lib/exportClass'
 import type { ClassDetail } from '@/lib/types'
-import { calculateGrades } from '@/lib/grades'
+import { calculateGrades, type GradeInput } from '@/lib/grades'
 
 export default function GradesTab({ classData }: { classData: ClassDetail }) {
   const [isAddingActivity, setIsAddingActivity] = useState(false)
@@ -81,9 +81,14 @@ export default function GradesTab({ classData }: { classData: ClassDetail }) {
 
   const handleSaveGrades = async (activityId: string) => {
     setIsSaving(true)
-    const gradesData: Record<string, number> = {}
+
+    // Célula vazia vai como `null` ("sem nota"), não como 0. Antes o `|| 0`
+    // aqui zerava todo aluno ainda não corrigido: bastava lançar metade da
+    // turma e salvar para a outra metade aparecer reprovada.
+    const gradesData: Record<string, GradeInput> = {}
     classData.enrollments.forEach((e) => {
-      gradesData[e.id] = gradesState[e.id]?.[activityId] || 0
+      const valor = gradesState[e.id]?.[activityId]
+      gradesData[e.id] = typeof valor === 'number' ? valor : null
     })
 
     const result = await saveGradesAction(classData.id, activityId, gradesData)

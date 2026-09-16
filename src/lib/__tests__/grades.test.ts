@@ -4,6 +4,8 @@ import {
   calculateGrades,
   finalGradeOrNull,
   isPassing,
+  isValidGradeValue,
+  parseGradeInput,
   type GradeEntry,
   type GradedActivity,
 } from '../grades'
@@ -152,5 +154,88 @@ describe('regressão: as telas precisam concordar entre si', () => {
     const r = calculateGrades(atividades, notas(valores), 'SUM')
     expect(r.final).not.toBe(somaCrua)
     expect(r.final).toBeLessThan(somaCrua)
+  })
+})
+
+describe('isValidGradeValue', () => {
+  it('aceita notas dentro da faixa', () => {
+    expect(isValidGradeValue(0)).toBe(true)
+    expect(isValidGradeValue(7.5)).toBe(true)
+    expect(isValidGradeValue(10)).toBe(true)
+  })
+
+  it('recusa notas fora da faixa', () => {
+    expect(isValidGradeValue(-1)).toBe(false)
+    expect(isValidGradeValue(10.1)).toBe(false)
+    expect(isValidGradeValue(100)).toBe(false)
+  })
+
+  it('recusa valores que não são número finito', () => {
+    expect(isValidGradeValue(NaN)).toBe(false)
+    expect(isValidGradeValue(Infinity)).toBe(false)
+    expect(isValidGradeValue('8')).toBe(false)
+    expect(isValidGradeValue(null)).toBe(false)
+    expect(isValidGradeValue(undefined)).toBe(false)
+  })
+})
+
+describe('parseGradeInput', () => {
+  it('separa notas a gravar das que devem ser removidas', () => {
+    const r = parseGradeInput({ a: 8, b: null, c: 6.5 })
+
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.toSave).toEqual([
+      { enrollmentId: 'a', value: 8 },
+      { enrollmentId: 'c', value: 6.5 },
+    ])
+    expect(r.toRemove).toEqual(['b'])
+  })
+
+  it('trata "sem nota" como remoção, nunca como zero', () => {
+    // Era o bug: a tela mandava 0 para quem ainda não tinha nota, e o aluno
+    // aparecia reprovado sem nunca ter sido corrigido.
+    const r = parseGradeInput({ a: null, b: undefined })
+
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.toSave).toEqual([])
+    expect(r.toRemove).toEqual(['a', 'b'])
+  })
+
+  it('mantém o zero lançado de propósito', () => {
+    const r = parseGradeInput({ a: 0 })
+
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.toSave).toEqual([{ enrollmentId: 'a', value: 0 }])
+    expect(r.toRemove).toEqual([])
+  })
+
+  it('recusa o lote inteiro quando alguma nota é inválida', () => {
+    // Gravar as válidas e descartar as inválidas em silêncio deixaria o diário
+    // num estado que o professor não pediu e não veria.
+    const r = parseGradeInput({ a: 8, b: 99, c: 7 })
+
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.invalid).toEqual([{ enrollmentId: 'b', value: 99 }])
+  })
+
+  it('lista todas as entradas inválidas do lote', () => {
+    const r = parseGradeInput({ a: -5, b: 8, c: NaN })
+
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.invalid.map(i => i.enrollmentId)).toEqual(['a', 'c'])
+  })
+
+  it('aceita um lote vazio', () => {
+    const r = parseGradeInput({})
+
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.toSave).toEqual([])
+    expect(r.toRemove).toEqual([])
   })
 })

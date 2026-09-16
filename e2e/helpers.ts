@@ -1,5 +1,11 @@
 import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 import type { Browser, BrowserContext, Page } from '@playwright/test'
+import {
+  SESSION_COOKIE,
+  createSessionToken,
+  passwordFingerprint,
+} from '../src/lib/session'
 
 export const SENHA = 'senha-de-teste-2026'
 
@@ -94,4 +100,117 @@ export async function entrar(page: Page, senha = SENHA): Promise<void> {
   await page.goto('/login')
   await page.fill('#password', senha)
   await page.click('button[type=submit]')
+}
+
+/**
+ * Contexto já autenticado, sem passar pelo formulário de login.
+ *
+ * O login tem um teto global de 30 tentativas a cada 15 minutos — uma proteção
+ * real contra força bruta. Uma suíte que faz login a cada teste esbarra nesse
+ * teto e os últimos testes falham por motivo nenhum a ver com o que verificam.
+ *
+ * Aqui a senha é gravada direto no banco e o cookie de sessão é assinado com a
+ * mesma função que a aplicação usa, então a sessão é legítima: nada de
+ * autenticação é contornado, apenas o formulário. Os testes que de fato
+ * exercitam login, rate limit e primeiro acesso continuam passando por ele.
+ */
+export async function novoContextoAutenticado(browser: Browser): Promise<BrowserContext> {
+  const hash = await bcrypt.hash(SENHA, 10)
+
+  await db.settings.deleteMany()
+  await db.settings.create({ data: { password: hash, theme: 'dark' } })
+
+  const token = await createSessionToken(await passwordFingerprint(hash))
+
+  const context = await novoContexto(browser)
+  await context.addCookies([
+    { name: SESSION_COOKIE, value: token, domain: '127.0.0.1', path: '/' },
+  ])
+
+  return context
+}
+
+// ---- Dados de apoio ----
+
+export type TurmaDeTeste = {
+  classId: string
+  activityId: string
+  /** enrollmentId por nome do aluno. */
+  enrollmentIdPorNome: Record<string, string>
+  /**
+   * enrollmentIds na mesma ordem em que aparecem na tabela.
+   *
+   * A página ordena as matrículas por nome do aluno, que não é
+   * necessariamente a ordem de criação — um teste que assuma a ordem de
+   * criação para clicar numa linha acaba mexendo no aluno errado.
+   */
+  enrollmentIdsEmOrdemDeExibicao: string[]
+}
+
+/**
+ * Monta uma turma completa direto no banco: instituição, semestre, disciplina,
+ * turma, alunos matriculados e uma atividade avaliativa.
+ *
+ * Criar isso pela interface levaria dezenas de cliques e tornaria o teste
+ * lento e frágil por motivos que não têm a ver com o que ele verifica.
+ */
+export async function criarTurmaDeTeste(
+  nomesDosAlunos: string[],
+  opcoes: { pesoDaAtividade?: number } = {}
+): Promise<TurmaDeTeste> {
+  const sufixo = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+
+  const institution = await db.institution.create({ data: { name: `Fatec Teste ${sufixo}` } })
+  const semester = await db.semester.create({ data: { name: `Semestre Teste ${sufixo}` } })
+  const subject = await db.subject.create({ data: { name: `Disciplina Teste ${sufixo}` } })
+
+  const turma = await db.class.create({
+    data: {
+      institutionId: institution.id,
+      semesterId: semester.id,
+      subjectId: subject.id,
+      turmaName: 'Turma de Teste',
+      professor: 'Prof. Teste',
+      calculationMethod: 'SUM',
+    },
+  })
+
+  const enrollmentIdPorNome: Record<string, string> = {}
+  let criados = 0
+  for (const nome of nomesDosAlunos) {
+    const student = await db.student.create({
+      data: { name: nome, rgm: `${sufixo}-${criados}` },
+    })
+    const enrollment = await db.enrollment.create({
+      data: { studentId: student.id, classId: turma.id },
+    })
+    enrollmentIdPorNome[nome] = enrollment.id
+    criados++
+  }
+
+  const activity = await db.activity.create({
+    data: {
+      classId: turma.id,
+      bimester: 1,
+      name: 'Prova 1',
+      weight: opcoes.pesoDaAtividade ?? 10,
+    },
+  })
+
+  const enrollmentIdsEmOrdemDeExibicao = [...nomesDosAlunos]
+    .sort((a, b) => a.localeCompare(b))
+    .map(nome => enrollmentIdPorNome[nome])
+
+  return {
+    classId: turma.id,
+    activityId: activity.id,
+    enrollmentIdPorNome,
+    enrollmentIdsEmOrdemDeExibicao,
+  }
+}
+
+/** As notas gravadas para uma atividade, por enrollmentId. */
+export async function notasDaAtividade(activityId: string): Promise<Record<string, number>> {
+  const grades = await db.grade.findMany({ where: { activityId } })
+  return Object.fromEntries(grades.map(g => [g.enrollmentId, g.value]))
 }
