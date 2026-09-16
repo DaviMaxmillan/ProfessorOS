@@ -187,21 +187,21 @@ export default function GradesTab({ classData }: { classData: ClassDetail }) {
         )}
       </div>
 
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
+      <div className="grades-scroll">
+        <table className="grades-table">
           <thead>
-            <tr style={{ background: 'rgba(0,0,0,0.2)' }}>
-              <th rowSpan={2} style={{ padding: '16px 20px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: '500', borderBottom: '1px solid var(--surface-border)', borderRight: '1px solid var(--surface-border)' }}>Aluno</th>
+            <tr>
+              <th rowSpan={2} className="col-aluno" style={{ padding: '16px 20px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: '500', borderBottom: '1px solid var(--surface-border)', borderRight: '1px solid var(--surface-border)' }}>Aluno</th>
               
-              <th colSpan={b1Activities.length + 1} style={{ padding: '8px', textAlign: 'center', color: '#fff', fontWeight: 'bold', borderBottom: '1px solid var(--surface-border)', borderRight: '1px solid var(--surface-border)', background: 'rgba(99, 102, 241, 0.1)' }}>
+              <th colSpan={b1Activities.length + 1} className="head-bimestre" style={{ padding: '8px', textAlign: 'center', color: '#fff', fontWeight: 'bold', borderBottom: '1px solid var(--surface-border)', borderRight: '1px solid var(--surface-border)' }}>
                 1º Bimestre
               </th>
               
-              <th colSpan={b2Activities.length + 1} style={{ padding: '8px', textAlign: 'center', color: '#fff', fontWeight: 'bold', borderBottom: '1px solid var(--surface-border)', borderRight: '1px solid var(--surface-border)', background: 'rgba(99, 102, 241, 0.1)' }}>
+              <th colSpan={b2Activities.length + 1} className="head-bimestre" style={{ padding: '8px', textAlign: 'center', color: '#fff', fontWeight: 'bold', borderBottom: '1px solid var(--surface-border)', borderRight: '1px solid var(--surface-border)' }}>
                 2º Bimestre
               </th>
               
-              <th colSpan={afActivities.length > 0 ? afActivities.length : 1} style={{ padding: '8px', textAlign: 'center', color: '#f59e0b', fontWeight: 'bold', borderBottom: '1px solid var(--surface-border)', borderRight: '1px solid var(--surface-border)', background: 'rgba(245, 158, 11, 0.1)' }}>
+              <th colSpan={afActivities.length > 0 ? afActivities.length : 1} className="head-af" style={{ padding: '8px', textAlign: 'center', color: '#f59e0b', fontWeight: 'bold', borderBottom: '1px solid var(--surface-border)', borderRight: '1px solid var(--surface-border)' }}>
                 Avaliação Final
               </th>
               
@@ -209,7 +209,7 @@ export default function GradesTab({ classData }: { classData: ClassDetail }) {
                 Média Final
               </th>
             </tr>
-            <tr style={{ background: 'rgba(0,0,0,0.1)' }}>
+            <tr>
               {b1Activities.map((act) => (
                 <th key={act.id} style={{ padding: '12px', textAlign: 'center', color: 'var(--text-secondary)', fontWeight: '500', borderBottom: '1px solid var(--surface-border)', position: 'relative' }}>
                   <button onClick={() => handleDeleteActivity(act.id)} style={{ position: 'absolute', top: '4px', right: '4px', background: 'none', border: 'none', color: 'rgba(239, 68, 68, 0.6)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px' }} title="Excluir Atividade" onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'} onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(239, 68, 68, 0.6)'}>
@@ -257,9 +257,30 @@ export default function GradesTab({ classData }: { classData: ClassDetail }) {
               const avgs = calculateFinalAvg(enrollment.id)
               const isApproved = parseFloat(avgs.final) >= 6.0
 
+              // Tinta da linha: status do aluno tem prioridade, senão o
+              // zebrado. `null` quando a linha não recebe cor nenhuma.
+              const tintaDaLinha =
+                enrollment.status === 'INATIVO' ? 'rgba(239, 68, 68, 0.07)'
+                : enrollment.status === 'DESISTENTE' ? 'rgba(245, 158, 11, 0.07)'
+                : index % 2 === 0 ? null
+                : 'rgba(255,255,255,0.02)'
+
               return (
-                <tr key={enrollment.id} style={{ borderBottom: '1px solid var(--surface-border)', background: enrollment.status === 'INATIVO' ? 'rgba(239, 68, 68, 0.07)' : enrollment.status === 'DESISTENTE' ? 'rgba(245, 158, 11, 0.07)' : (index % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)') }}>
-                  <td style={{ padding: '12px 20px', fontWeight: '500', borderRight: '1px solid var(--surface-border)' }}>
+                <tr key={enrollment.id} style={{ borderBottom: '1px solid var(--surface-border)', background: tintaDaLinha ?? 'transparent' }}>
+                  {/* A coluna do aluno é fixa, então precisa de fundo opaco
+                      próprio: a tinta da linha entra como camada por cima. */}
+                  <td
+                    className="col-aluno"
+                    style={{
+                      padding: '12px 20px',
+                      fontWeight: '500',
+                      borderRight: '1px solid var(--surface-border)',
+                      borderBottom: '1px solid var(--surface-border)',
+                      backgroundImage: tintaDaLinha
+                        ? `linear-gradient(${tintaDaLinha}, ${tintaDaLinha})`
+                        : undefined,
+                    }}
+                  >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       {/* Destaque se tiver anotação */}
                       <span style={{ color: enrollment.notes ? '#f59e0b' : 'var(--text-primary)', fontWeight: enrollment.notes ? '600' : '500' }}>
