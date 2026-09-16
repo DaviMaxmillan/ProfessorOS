@@ -4,17 +4,27 @@ import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
 import { errorMessage } from '@/lib/errors'
+import {
+  MAX_GRADE,
+  MIN_GRADE,
+  parseGradeInput,
+  type GradeInput,
+} from '@/lib/grades'
 
 export async function saveProvisionalAttendanceAction(classId: string, date: string, attendanceData: Record<string, boolean>) {
   await requireAuth()
 
   try {
     const targetDate = new Date(date)
+    if (isNaN(targetDate.getTime())) {
+      return { success: false, message: 'Data inválida.' }
+    }
 
-    // For each enrollment, save the attendance record
-    const promises = Object.entries(attendanceData).map(async ([enrollmentId, isPresent]) => {
-      // Upsert: update if it exists for that date, otherwise create
-      await prisma.attendanceRecord.upsert({
+    // Um lote só: ou a chamada inteira é gravada, ou nada é. Antes eram N
+    // upserts soltos num Promise.all — uma falha no meio deixava parte da
+    // turma salva e parte não, sem o professor saber quais.
+    const operations = Object.entries(attendanceData).map(([enrollmentId, isPresent]) =>
+      prisma.attendanceRecord.upsert({
         where: {
           enrollmentId_date: {
             enrollmentId,
@@ -30,9 +40,9 @@ export async function saveProvisionalAttendanceAction(classId: string, date: str
           present: isPresent
         }
       })
-    })
+    )
 
-    await Promise.all(promises)
+    await prisma.$transaction(operations)
 
     revalidatePath(`/dashboard/classes/${classId}`)
     return { success: true, message: 'Frequência provisória salva com sucesso!' }
@@ -66,21 +76,50 @@ export async function createActivityAction(formData: FormData) {
   }
 }
 
-export async function saveGradesAction(classId: string, activityId: string, gradesData: Record<string, number>) {
+export async function saveGradesAction(
+  classId: string,
+  activityId: string,
+  gradesData: Record<string, GradeInput>
+) {
   await requireAuth()
 
-  try {
-    const promises = Object.entries(gradesData).map(async ([enrollmentId, value]) => {
-      await prisma.grade.upsert({
-        where: {
-          enrollmentId_activityId: { enrollmentId, activityId }
-        },
-        update: { value },
-        create: { enrollmentId, activityId, value }
-      })
-    })
+  const parsed = parseGradeInput(gradesData)
 
-    await Promise.all(promises)
+  if (!parsed.ok) {
+    const quantidade = parsed.invalid.length
+    return {
+      success: false,
+      message:
+        `${quantidade} nota${quantidade > 1 ? 's' : ''} fora da faixa de ` +
+        `${MIN_GRADE} a ${MAX_GRADE}. Nenhuma nota foi salva.`,
+    }
+  }
+
+  try {
+    // Um lote só: ou todas as notas da atividade são gravadas, ou nenhuma.
+    // Antes eram N upserts soltos num Promise.all — uma falha no meio deixava
+    // parte da turma salva e parte não, sem o professor saber quais.
+    const operations = [
+      ...parsed.toSave.map(({ enrollmentId, value }) =>
+        prisma.grade.upsert({
+          where: { enrollmentId_activityId: { enrollmentId, activityId } },
+          update: { value },
+          create: { enrollmentId, activityId, value },
+        })
+      ),
+      // Célula esvaziada volta a ser "sem nota": a linha é removida em vez de
+      // virar zero. Um aluno ainda não corrigido não pode contar como zero.
+      ...(parsed.toRemove.length > 0
+        ? [
+            prisma.grade.deleteMany({
+              where: { activityId, enrollmentId: { in: parsed.toRemove } },
+            }),
+          ]
+        : []),
+    ]
+
+    await prisma.$transaction(operations)
+
     revalidatePath(`/dashboard/classes/${classId}`)
     return { success: true, message: 'Notas salvas com sucesso!' }
   } catch (error) {

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
 import { errorMessage } from '@/lib/errors'
+import { MAX_GRADE, MIN_GRADE, isValidGradeValue } from '@/lib/grades'
 
 export async function createGroupWorkAction(classId: string, name: string, description: string, weight: number, createActivity: boolean) {
   await requireAuth()
@@ -172,36 +173,42 @@ export async function gradeGroupAction(groupId: string, gradeValue: number, note
     })
     
     if (!group) return { success: false, message: 'Grupo não encontrado' }
-    
+
     const activityId = group.groupWork.activityId
     if (!activityId) return { success: false, message: 'Este trabalho não gera notas no diário.' }
-    
-    // Update group notes
-    await prisma.group.update({
-      where: { id: groupId },
-      data: { notes }
-    })
-    
-    // Upsert grades for all members
-    for (const member of group.members) {
-      await prisma.grade.upsert({
-        where: {
-          enrollmentId_activityId: {
-            enrollmentId: member.enrollmentId,
-            activityId: activityId
-          }
-        },
-        update: {
-          value: gradeValue
-        },
-        create: {
-          enrollmentId: member.enrollmentId,
-          activityId: activityId,
-          value: gradeValue
-        }
-      })
+
+    if (!isValidGradeValue(gradeValue)) {
+      return {
+        success: false,
+        message: `A nota precisa estar entre ${MIN_GRADE} e ${MAX_GRADE}.`,
+      }
     }
     
+    // O feedback do grupo e as notas dos integrantes são um lote só: metade
+    // do grupo com nota e metade sem seria pior que não ter lançado nada.
+    await prisma.$transaction([
+      prisma.group.update({
+        where: { id: groupId },
+        data: { notes },
+      }),
+      ...group.members.map(member =>
+        prisma.grade.upsert({
+          where: {
+            enrollmentId_activityId: {
+              enrollmentId: member.enrollmentId,
+              activityId,
+            },
+          },
+          update: { value: gradeValue },
+          create: {
+            enrollmentId: member.enrollmentId,
+            activityId,
+            value: gradeValue,
+          },
+        })
+      ),
+    ])
+
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true }
   } catch (error) {
@@ -223,28 +230,32 @@ export async function generateRandomGroupsAction(groupWorkId: string, groupCount
     
     // Get existing groups count to name the new ones correctly
     const existingGroups = await prisma.group.count({ where: { groupWorkId } })
-    
-    const newGroups = []
-    for (let i = 0; i < groupCount; i++) {
-      newGroups.push(await prisma.group.create({
-        data: {
-          groupWorkId,
-          name: `Grupo ${existingGroups + i + 1}`
-        }
-      }))
-    }
-    
-    // Distribute students
-    let currentGroupIndex = 0
-    for (const studentId of shuffled) {
-      await prisma.groupMember.create({
-        data: {
-          groupId: newGroups[currentGroupIndex].id,
-          enrollmentId: studentId
-        }
+
+    // Criar os grupos e distribuir os alunos num bloco só. Os integrantes
+    // dependem dos ids dos grupos recém-criados, então é uma transação
+    // interativa e não um lote de operações independentes. Falhando no meio,
+    // não sobram grupos vazios nem alunos sem grupo.
+    await prisma.$transaction(async (tx) => {
+      const newGroups: { id: string }[] = []
+      for (let i = 0; i < groupCount; i++) {
+        newGroups.push(
+          await tx.group.create({
+            data: {
+              groupWorkId,
+              name: `Grupo ${existingGroups + i + 1}`,
+            },
+          })
+        )
+      }
+
+      await tx.groupMember.createMany({
+        data: shuffled.map((enrollmentId, indice) => ({
+          groupId: newGroups[indice % groupCount].id,
+          enrollmentId,
+        })),
       })
-      currentGroupIndex = (currentGroupIndex + 1) % groupCount
-    }
+    })
+
     
     revalidatePath('/dashboard/classes/[id]', 'page')
     return { success: true }

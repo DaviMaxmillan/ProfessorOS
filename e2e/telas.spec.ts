@@ -1,11 +1,5 @@
 import { expect, test } from '@playwright/test'
-import {
-  abrirBusca,
-  cadastrarSenhaEEntrar,
-  db,
-  limparSenha,
-  novoContexto,
-} from './helpers'
+import { abrirBusca, db, novoContextoAutenticado } from './helpers'
 
 const TELAS = [
   ['/dashboard', 'Visão geral'],
@@ -18,18 +12,15 @@ const TELAS = [
 ] as const
 
 test.describe('Todas as telas', () => {
-  test.beforeEach(async () => { await limparSenha() })
-
   test('carregam sem erro de console', async ({ browser }) => {
     test.slow() // sete navegações completas em sequência
-    const ctx = await novoContexto(browser)
+    const ctx = await novoContextoAutenticado(browser)
     const page = await ctx.newPage()
 
     const erros: string[] = []
-    page.on('console', m => { if (m.type() === 'error') erros.push(m.text()) })
+    page.on('console', (m) => { if (m.type() === 'error') erros.push(m.text()) })
     page.on('pageerror', e => erros.push(e.message))
 
-    await cadastrarSenhaEEntrar(page)
 
     for (const [rota, nome] of TELAS) {
       const res = await page.goto(rota)
@@ -44,12 +35,9 @@ test.describe('Todas as telas', () => {
 })
 
 test.describe('Preferências visuais', () => {
-  test.beforeEach(async () => { await limparSenha() })
-
   test('trocar a cor aplica na hora e sobrevive à navegação', async ({ browser }) => {
-    const ctx = await novoContexto(browser)
+    const ctx = await novoContextoAutenticado(browser)
     const page = await ctx.newPage()
-    await cadastrarSenhaEEntrar(page)
 
     await page.goto('/dashboard/settings')
     await page.getByRole('button', { name: /Verde Esmeralda/i }).click()
@@ -76,12 +64,10 @@ test.describe('Preferências visuais', () => {
 })
 
 test.describe('Busca global', () => {
-  test.beforeEach(async () => { await limparSenha() })
-
   test('abre com Ctrl+K e lida com "nenhum resultado"', async ({ browser }) => {
-    const ctx = await novoContexto(browser)
+    const ctx = await novoContextoAutenticado(browser)
     const page = await ctx.newPage()
-    await cadastrarSenhaEEntrar(page)
+    await page.goto('/dashboard')
 
     const campo = await abrirBusca(page)
     await campo.fill('zzz-nao-existe')
@@ -91,13 +77,13 @@ test.describe('Busca global', () => {
   })
 
   test('não quebra quando a sessão expira durante a busca', async ({ browser }) => {
-    const ctx = await novoContexto(browser)
+    const ctx = await novoContextoAutenticado(browser)
     const page = await ctx.newPage()
 
     const erros: string[] = []
     page.on('pageerror', e => erros.push(e.message))
 
-    await cadastrarSenhaEEntrar(page)
+    await page.goto('/dashboard')
     const campo = await abrirBusca(page)
 
     // A rota passa a responder 401 com um objeto de erro no corpo. Sem checar

@@ -129,3 +129,72 @@ export function finalGradeOrNull(
   if (grades.length === 0) return null
   return calculateGrades(activities, grades, method).final
 }
+
+// ---- Entrada de notas ----
+
+/** Faixa aceita para uma nota lançada. */
+export const MIN_GRADE = 0
+export const MAX_GRADE = 10
+
+/**
+ * O que a tela envia para cada aluno ao salvar uma atividade:
+ * um número para a nota lançada, ou `null` para "sem nota".
+ *
+ * A distinção importa: um aluno sem nota não é um aluno que tirou zero. Antes
+ * a tela mandava `0` nos dois casos, então corrigir metade da turma e salvar
+ * zerava a outra metade.
+ */
+export type GradeInput = number | null
+
+export type GradeInputResult =
+  | {
+      ok: true
+      /** Notas a gravar. */
+      toSave: Array<{ enrollmentId: string; value: number }>
+      /** Alunos cuja nota deve ser removida (voltam a "sem nota"). */
+      toRemove: string[]
+    }
+  | {
+      ok: false
+      /** Entradas recusadas, com o valor que veio. */
+      invalid: Array<{ enrollmentId: string; value: unknown }>
+    }
+
+/** Uma nota válida é um número finito dentro da faixa. */
+export function isValidGradeValue(value: unknown): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isFinite(value) &&
+    value >= MIN_GRADE &&
+    value <= MAX_GRADE
+  )
+}
+
+/**
+ * Separa o que a tela enviou em "gravar" e "remover", recusando o lote inteiro
+ * se qualquer valor for inválido.
+ *
+ * Recusar o lote todo é deliberado: gravar as notas boas e descartar as ruins
+ * em silêncio deixaria o diário num estado que o professor não pediu e não
+ * veria.
+ */
+export function parseGradeInput(
+  data: Record<string, GradeInput | undefined>
+): GradeInputResult {
+  const toSave: Array<{ enrollmentId: string; value: number }> = []
+  const toRemove: string[] = []
+  const invalid: Array<{ enrollmentId: string; value: unknown }> = []
+
+  for (const [enrollmentId, value] of Object.entries(data)) {
+    if (value === null || value === undefined) {
+      toRemove.push(enrollmentId)
+    } else if (isValidGradeValue(value)) {
+      toSave.push({ enrollmentId, value })
+    } else {
+      invalid.push({ enrollmentId, value })
+    }
+  }
+
+  if (invalid.length > 0) return { ok: false, invalid }
+  return { ok: true, toSave, toRemove }
+}
