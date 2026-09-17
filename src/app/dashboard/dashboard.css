@@ -157,9 +157,12 @@
   --grades-surface: #ffffff;
 }
 
+/* Valor inicial, antes de o componente medir o espaço real disponível na
+   janela (veja o efeito em GradesTab). Sem isto a tabela apareceria com a
+   altura inteira por um instante. */
 .grades-scroll {
   max-height: calc(100vh - 300px);
-  min-height: 260px;
+  min-height: 320px;
   overflow: auto;
 }
 
@@ -222,10 +225,4 @@
   transform: translateX(100%);
   background: linear-gradient(to right, rgba(0, 0, 0, 0.18), transparent);
   pointer-events: none;
-}
-
-@media (max-width: 768px) {
-  .grades-scroll {
-    max-height: calc(100vh - 220px);
-  }
 }

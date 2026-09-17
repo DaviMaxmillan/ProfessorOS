@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Plus, Calculator, Settings, X, Edit2, StickyNote, FileSpreadsheet } from 'lucide-react'
 import { createActivityAction, saveGradesAction, updateClassCalculationMethod, deleteActivityAction, updateStudentNameAction, saveEnrollmentNotesAction } from '@/app/actions/diary'
 import { buildGradesSheet, exportSheetXLSX } from '@/lib/exportClass'
@@ -8,6 +8,7 @@ import type { ClassDetail } from '@/lib/types'
 import { calculateGrades, type GradeInput } from '@/lib/grades'
 
 export default function GradesTab({ classData }: { classData: ClassDetail }) {
+  const areaDeRolagemRef = useRef<HTMLDivElement>(null)
   const [isAddingActivity, setIsAddingActivity] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [calcMethod, setCalcMethod] = useState(classData.calculationMethod || 'SUM')
@@ -78,6 +79,54 @@ export default function GradesTab({ classData }: { classData: ClassDetail }) {
       alert(result.message)
     }
   }
+
+  // A altura util da tabela depende de quanto sobra da janela abaixo dela, e
+  // isso muda com a resolução da tela e com o tamanho do cabeçalho da turma
+  // (o nome da disciplina pode quebrar em duas linhas). Medir é mais confiável
+  // que subtrair um valor fixo, que erraria em qualquer tela diferente da que
+  // serviu de referência.
+  //
+  // O CSS já define um valor inicial, então a tabela nunca aparece sem altura
+  // enquanto isto não roda.
+  useEffect(() => {
+    const area = areaDeRolagemRef.current
+    if (!area) return
+
+    let ultimaAltura = 0
+
+    const ajustarAltura = () => {
+      const topoNoDocumento = area.getBoundingClientRect().top + window.scrollY
+      const respiro = 32
+
+      // Piso para telas baixas: melhor uma tabela curta com rolagem própria do
+      // que uma faixa de duas linhas.
+      const alvo = Math.max(320, Math.round(window.innerHeight - topoNoDocumento - respiro))
+
+      // Só reescreve quando muda de verdade. Escrever a altura altera o
+      // tamanho da página, e sem essa guarda o observador abaixo reentraria.
+      if (Math.abs(alvo - ultimaAltura) < 4) return
+      ultimaAltura = alvo
+      area.style.maxHeight = `${alvo}px`
+    }
+
+    ajustarAltura()
+
+    // O primeiro cálculo acontece antes de o layout assentar (fontes, cartões
+    // de estatística), então a medida sairia menor do que o espaço real.
+    const quadro = requestAnimationFrame(ajustarAltura)
+
+    // Reage a qualquer mudança de altura acima da tabela — trocar de aba,
+    // abrir o formulário de nova atividade, redimensionar a janela.
+    const observador = new ResizeObserver(ajustarAltura)
+    observador.observe(document.body)
+    window.addEventListener('resize', ajustarAltura)
+
+    return () => {
+      cancelAnimationFrame(quadro)
+      observador.disconnect()
+      window.removeEventListener('resize', ajustarAltura)
+    }
+  }, [])
 
   const handleSaveGrades = async (activityId: string) => {
     setIsSaving(true)
@@ -187,7 +236,7 @@ export default function GradesTab({ classData }: { classData: ClassDetail }) {
         )}
       </div>
 
-      <div className="grades-scroll">
+      <div className="grades-scroll" ref={areaDeRolagemRef}>
         <table className="grades-table">
           <thead>
             <tr>
