@@ -108,10 +108,17 @@
   color: #f87171;
 }
 
+/* O limite existe para o texto não virar linhas largas demais de ler. Mas as
+ * telas deste sistema são tabelas — diário, frequência, cronograma — e a 1200
+ * o diário de notas não cabia, obrigando a rolagem horizontal mesmo num
+ * monitor que tinha espaço de sobra.
+ *
+ * A tela de configurações, que é a única de leitura corrida, já se limita a
+ * 800px por conta própria. */
 .main-content {
   flex: 1;
   padding: 40px;
-  max-width: 1200px;
+  max-width: 1800px;
   margin: 0 auto;
   width: 100%;
 }
