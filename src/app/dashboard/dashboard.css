@@ -228,9 +228,24 @@
 }
 
 /* A tabela cresce com a turma: sem trava de altura, o professor rola a página
-   como faria numa planilha. */
+   como faria numa planilha.
+ *
+ * `overflow-x: auto` é o padrão seguro — sem ele uma tabela larga demais
+ * vazaria para fora do painel antes de o componente medir.
+ *
+ * Mas há um porém: qualquer `overflow-x` que role transforma esta div num
+ * contentor de rolagem, e aí o `position: sticky` do cabeçalho passa a se
+ * prender nela em vez de na janela — ou seja, deixa de acompanhar a rolagem
+ * da página. Vale mesmo quando não há nada para rolar na horizontal.
+ *
+ * Por isso, quando a tabela cabe na largura disponível, o componente marca
+ * `.cabe` e o overflow sai de cena, devolvendo o cabeçalho fixo. */
 .grades-scroll {
   overflow-x: auto;
+}
+
+.grades-scroll.cabe {
+  overflow-x: visible;
 }
 
 .grades-table {
@@ -242,6 +257,9 @@
   border-spacing: 0;
 }
 
+/* Cabeçalho preso ao topo da janela enquanto se rola a turma. Depende de
+   `.cabe` na área acima: com `overflow-x` ativo, ele se prenderia ao contentor
+   de rolagem em vez de à janela. */
 .grades-table thead {
   position: sticky;
   top: 0;
