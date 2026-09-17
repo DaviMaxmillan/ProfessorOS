@@ -94,10 +94,28 @@ export default function GradesTab({ classData }: { classData: ClassDetail }) {
     const medida = medidaDaBarraRef.current
     if (!area || !topo || !medida) return
 
-    // A barra de cima só aparece quando há o que rolar.
+    // Decide, a cada mudança de largura, se a tabela cabe no espaço disponível.
+    //
+    // Quando cabe, o `overflow-x` sai de cena (classe `cabe`): ele transforma a
+    // área num contentor de rolagem, e aí o cabeçalho preso ao topo passaria a
+    // se prender nela em vez de na janela — deixando de acompanhar a rolagem da
+    // página. Quando não cabe, o overflow volta e a barra de cima aparece.
+    let cabiaAntes: boolean | null = null
+
     const sincronizarLargura = () => {
-      medida.style.width = `${area.scrollWidth}px`
-      topo.style.display = area.scrollWidth > area.clientWidth ? 'block' : 'none'
+      const tabela = area.querySelector('table')
+      if (!tabela) return
+
+      const cabe = tabela.scrollWidth <= area.clientWidth
+
+      // Alternar a classe muda o layout, então só mexe quando de fato virou.
+      if (cabe !== cabiaAntes) {
+        cabiaAntes = cabe
+        area.classList.toggle('cabe', cabe)
+      }
+
+      medida.style.width = `${tabela.scrollWidth}px`
+      topo.style.display = cabe ? 'none' : 'block'
     }
 
     // Espelhamento nos dois sentidos, com trava para um não reagir ao outro.
