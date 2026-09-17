@@ -19,6 +19,22 @@ const args = process.argv.slice(2)
 const confirmar = args.includes('--confirmar')
 const apenasZeros = args.includes('--apenas-zeros')
 
+/**
+ * `npm run limpar-notas --confirmar` não funciona: sem os dois hifens soltos
+ * o npm trata a opção como dele e não repassa ao script. É um tropeço comum, e
+ * silencioso — o script rodaria em simulação e a pessoa acharia que apagou.
+ *
+ * O npm deixa rastro: a opção engolida vira `npm_config_<nome>`, com os hifens
+ * virando sublinhados.
+ */
+function engolidaPeloNpm(opcao: string): boolean {
+  return process.env[`npm_config_${opcao.replace(/-/g, '_')}`] === 'true'
+}
+
+const engolidas = ['confirmar', 'apenas-zeros'].filter(
+  opcao => !args.includes(`--${opcao}`) && engolidaPeloNpm(opcao)
+)
+
 /** Mostra o host e o banco, sem expor usuário e senha. */
 function bancoAlvo(): string {
   const url = process.env.DATABASE_URL
@@ -32,6 +48,23 @@ function bancoAlvo(): string {
 }
 
 async function main() {
+  if (engolidas.length > 0) {
+    const escritas = engolidas.map(o => `--${o}`).join(' ')
+    console.error('')
+    console.error('  As opções não chegaram ao script.')
+    console.error('')
+    console.error(`  Você escreveu:   npm run limpar-notas ${escritas}`)
+    console.error(`  O correto é:     npm run limpar-notas -- ${escritas}`)
+    console.error('')
+    console.error('  Repare nos dois hifens soltos antes das opções. Sem eles o npm')
+    console.error('  trata "--confirmar" como opção dele e não repassa adiante.')
+    console.error('')
+    console.error('  Nada foi apagado.')
+    console.error('')
+    process.exitCode = 1
+    return
+  }
+
   if (!process.env.DATABASE_URL) {
     console.error('DATABASE_URL não definida. Aponte para o banco antes de rodar.')
     process.exitCode = 1
