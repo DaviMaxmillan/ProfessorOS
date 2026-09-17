@@ -9,6 +9,8 @@ import { calculateGrades, type GradeInput } from '@/lib/grades'
 
 export default function GradesTab({ classData }: { classData: ClassDetail }) {
   const areaDeRolagemRef = useRef<HTMLDivElement>(null)
+  const barraDeTopoRef = useRef<HTMLDivElement>(null)
+  const medidaDaBarraRef = useRef<HTMLDivElement>(null)
   const [isAddingActivity, setIsAddingActivity] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [calcMethod, setCalcMethod] = useState(classData.calculationMethod || 'SUM')
@@ -80,53 +82,54 @@ export default function GradesTab({ classData }: { classData: ClassDetail }) {
     }
   }
 
-  // A altura util da tabela depende de quanto sobra da janela abaixo dela, e
-  // isso muda com a resolução da tela e com o tamanho do cabeçalho da turma
-  // (o nome da disciplina pode quebrar em duas linhas). Medir é mais confiável
-  // que subtrair um valor fixo, que erraria em qualquer tela diferente da que
-  // serviu de referência.
+  // Uma segunda barra de rolagem horizontal, acima da tabela.
   //
-  // O CSS já define um valor inicial, então a tabela nunca aparece sem altura
-  // enquanto isto não roda.
+  // A barra do navegador fica na borda de baixo da área que rola — ou seja,
+  // depois do último aluno. Numa turma grande isso obriga a percorrer a turma
+  // toda só para rolar de lado. Esta barra espelha a de baixo e fica logo
+  // acima do cabeçalho, sempre ao alcance.
   useEffect(() => {
     const area = areaDeRolagemRef.current
-    if (!area) return
+    const topo = barraDeTopoRef.current
+    const medida = medidaDaBarraRef.current
+    if (!area || !topo || !medida) return
 
-    let ultimaAltura = 0
-
-    const ajustarAltura = () => {
-      const topoNoDocumento = area.getBoundingClientRect().top + window.scrollY
-      const respiro = 32
-
-      // Piso para telas baixas: melhor uma tabela curta com rolagem própria do
-      // que uma faixa de duas linhas.
-      const alvo = Math.max(320, Math.round(window.innerHeight - topoNoDocumento - respiro))
-
-      // Só reescreve quando muda de verdade. Escrever a altura altera o
-      // tamanho da página, e sem essa guarda o observador abaixo reentraria.
-      if (Math.abs(alvo - ultimaAltura) < 4) return
-      ultimaAltura = alvo
-      area.style.maxHeight = `${alvo}px`
+    // A barra de cima só aparece quando há o que rolar.
+    const sincronizarLargura = () => {
+      medida.style.width = `${area.scrollWidth}px`
+      topo.style.display = area.scrollWidth > area.clientWidth ? 'block' : 'none'
     }
 
-    ajustarAltura()
+    // Espelhamento nos dois sentidos, com trava para um não reagir ao outro.
+    let ecoando = false
+    const daTabelaParaBarra = () => {
+      if (ecoando) return
+      ecoando = true
+      topo.scrollLeft = area.scrollLeft
+      ecoando = false
+    }
+    const daBarraParaTabela = () => {
+      if (ecoando) return
+      ecoando = true
+      area.scrollLeft = topo.scrollLeft
+      ecoando = false
+    }
 
-    // O primeiro cálculo acontece antes de o layout assentar (fontes, cartões
-    // de estatística), então a medida sairia menor do que o espaço real.
-    const quadro = requestAnimationFrame(ajustarAltura)
+    sincronizarLargura()
+    area.addEventListener('scroll', daTabelaParaBarra)
+    topo.addEventListener('scroll', daBarraParaTabela)
 
-    // Reage a qualquer mudança de altura acima da tabela — trocar de aba,
-    // abrir o formulário de nova atividade, redimensionar a janela.
-    const observador = new ResizeObserver(ajustarAltura)
-    observador.observe(document.body)
-    window.addEventListener('resize', ajustarAltura)
+    // A largura muda ao criar ou excluir atividade, e ao redimensionar.
+    const observador = new ResizeObserver(sincronizarLargura)
+    observador.observe(area)
 
     return () => {
-      cancelAnimationFrame(quadro)
+      area.removeEventListener('scroll', daTabelaParaBarra)
+      topo.removeEventListener('scroll', daBarraParaTabela)
       observador.disconnect()
-      window.removeEventListener('resize', ajustarAltura)
     }
-  }, [])
+  }, [classData.activities.length])
+
 
   const handleSaveGrades = async (activityId: string) => {
     setIsSaving(true)
@@ -234,6 +237,10 @@ export default function GradesTab({ classData }: { classData: ClassDetail }) {
             <button type="button" onClick={() => setIsAddingActivity(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>Cancelar</button>
           </form>
         )}
+      </div>
+
+      <div className="grades-scroll-topo" ref={barraDeTopoRef}>
+        <div ref={medidaDaBarraRef} />
       </div>
 
       <div className="grades-scroll" ref={areaDeRolagemRef}>
