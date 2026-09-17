@@ -157,13 +157,73 @@
   --grades-surface: #ffffff;
 }
 
-/* Valor inicial, antes de o componente medir o espaço real disponível na
-   janela (veja o efeito em GradesTab). Sem isto a tabela apareceria com a
-   altura inteira por um instante. */
+/* Barra de rolagem horizontal acima da tabela.
+ *
+ * A barra do navegador fica na borda de baixo da área que rola — depois do
+ * último aluno. Esta espelha aquela e fica ao alcance, sem precisar descer a
+ * turma inteira. O componente sincroniza as duas e só a exibe quando há o que
+ * rolar. A `div` interna existe apenas para dar largura ao conteúdo.
+ */
+.grades-scroll-topo {
+  display: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+
+  /* Fica presa no topo da janela enquanto se rola a turma: sem isso ela
+     sairia de vista logo nos primeiros alunos e o problema voltaria. */
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--grades-surface);
+  padding-top: 4px;
+}
+
+/* A barra precisa aparecer sempre e ser larga o bastante para agarrar com o
+   mouse. Sem isto, sistemas que usam barra sobreposta a escondem enquanto não
+   se rola — justamente quando se precisa achá-la. */
+.grades-scroll-topo {
+  scrollbar-width: auto;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.grades-scroll-topo::-webkit-scrollbar {
+  height: 12px;
+}
+
+.grades-scroll-topo::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+}
+
+.grades-scroll-topo::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 6px;
+}
+
+.grades-scroll-topo::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.45);
+}
+
+[data-theme='light'] .grades-scroll-topo {
+  scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+}
+
+[data-theme='light'] .grades-scroll-topo::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme='light'] .grades-scroll-topo::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.grades-scroll-topo > div {
+  height: 1px;
+}
+
+/* A tabela cresce com a turma: sem trava de altura, o professor rola a página
+   como faria numa planilha. */
 .grades-scroll {
-  max-height: calc(100vh - 300px);
-  min-height: 320px;
-  overflow: auto;
+  overflow-x: auto;
 }
 
 .grades-table {
