@@ -95,15 +95,34 @@ Se essa regra precisar mudar, mude num lugar só e ajuste
 
 ## Scripts
 
-| Comando             | O que faz                                          |
-| ------------------- | -------------------------------------------------- |
-| `npm run dev`       | Servidor de desenvolvimento.                        |
-| `npm run build`     | Build de produção.                                  |
-| `npm run start`     | Sobe o build de produção.                           |
-| `npm run lint`      | ESLint.                                             |
-| `npm run typecheck` | TypeScript sem gerar arquivos.                      |
-| `npm test`          | Testes unitários (Vitest).                          |
-| `npm run test:e2e`  | Testes de ponta a ponta (Playwright).               |
+| Comando                | O que faz                             |
+| ---------------------- | ------------------------------------- |
+| `npm run dev`          | Servidor de desenvolvimento.          |
+| `npm run build`        | Build de produção.                    |
+| `npm run start`        | Sobe o build de produção.             |
+| `npm run lint`         | ESLint.                               |
+| `npm run typecheck`    | TypeScript sem gerar arquivos.        |
+| `npm test`             | Testes unitários (Vitest).            |
+| `npm run test:e2e`     | Testes de ponta a ponta (Playwright). |
+| `npm run limpar-notas` | Remove notas lançadas (veja abaixo).  |
+
+## Limpar notas de teste
+
+Útil para zerar dados de teste antes de começar a lançar notas de verdade.
+
+```bash
+npm run limpar-notas                      # mostra o que existe, sem apagar
+npm run limpar-notas -- --apenas-zeros    # só as notas iguais a zero
+npm run limpar-notas -- --confirmar       # apaga de verdade
+```
+
+Repare nos **dois hifens soltos** antes das opções. Sem eles o npm trata
+`--confirmar` como opção dele e não repassa ao script. O script detecta esse
+caso e avisa, em vez de rodar em simulação silenciosamente.
+
+Por segurança, o comando roda em simulação por padrão, imprime o banco alvo no
+cabeçalho e agrupa as notas por turma e atividade — confira a lista antes de
+confirmar.
 
 ## Testes
 
