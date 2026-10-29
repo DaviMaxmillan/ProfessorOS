@@ -118,6 +118,41 @@ contador que nenhum lugar do sistema escrevia, e era de onde a exportação, a
 visão geral e os relatórios tiravam as faltas — por isso mostravam 0 falta e
 100% de frequência mesmo com a chamada feita e salva.
 
+## Como a sincronização da planilha funciona
+
+A planilha da instituição é a lista oficial da turma. Sincronizar faz o sistema
+refletir essa lista, em `src/lib/roster.ts`:
+
+| Na planilha | No sistema |
+| --- | --- |
+| Nome novo | Aluno cadastrado e matriculado |
+| Nome com `(Trancado)` | Matrícula fica `INATIVO` e o aluno sai da chamada |
+| Nome sem a marca, estando trancado | Matrícula volta para `ATIVO` |
+| Nome que não consta | Aguarda confirmação para ser removido |
+
+A marca é reconhecida entre parênteses ou colchetes, antes ou depois do nome,
+com ou sem acento, em qualquer caixa, e também separada por hífen. Ela é
+retirada antes de gravar: guardar "(Trancado) FULANO" como nome do aluno faria
+ele deixar de bater com a planilha assim que destrancasse.
+
+`DESISTENTE` é preservado. A planilha da secretaria não expressa desistência —
+é uma avaliação do professor, e sobrescrevê-la apagaria algo digitado à mão. A
+marca de trancado, por ser um sinal explícito, vence.
+
+**A remoção nunca acontece na primeira passada.** Remover uma matrícula apaga
+em cascata as notas, as chamadas, a participação em grupos e os vínculos de
+necessidades especiais do aluno. A tela lista quem sai e quanto cada um perde,
+e só remove depois da confirmação. Se a planilha estiver incompleta — faltando
+uma página, por exemplo — basta não confirmar.
+
+O aluno sai do cadastro geral apenas quando não sobra nenhuma outra turma. Quem
+o professor tem em duas disciplinas continua lá.
+
+O aluno é identificado pelo RGM; o nome é o reserva, usado quando a planilha vem
+sem RGM. A comparação por nome ignora acento, caixa e espaço repetido, mas dois
+alunos homônimos sem RGM são indistinguíveis — nesse caso o RGM na planilha é o
+que garante o acerto.
+
 ## Scripts
 
 | Comando                | O que faz                             |
@@ -152,7 +187,8 @@ confirmar.
 ## Testes
 
 **Unitários** (`npm test`) cobrem a lógica pura: cálculo de notas, frequência,
-feriados, assinatura de sessão, rate limit e tratamento de erros. Não precisam
+sincronização da lista de alunos, feriados, assinatura de sessão, rate limit e
+tratamento de erros. Não precisam
 de banco.
 
 **Ponta a ponta** (`npm run test:e2e`) sobem a aplicação de produção contra um

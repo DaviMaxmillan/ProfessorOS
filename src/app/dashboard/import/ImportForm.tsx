@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { UploadCloud, CheckCircle, XCircle } from 'lucide-react'
+import { UploadCloud, CheckCircle, XCircle, AlertTriangle, Lock } from 'lucide-react'
 import { importExcelAction, ImportResult } from '@/app/actions/import'
 
 type ClassData = {
@@ -52,7 +52,13 @@ export default function ImportForm({ classes }: { classes: ClassData[] }) {
     }
   }
 
-  const handleSubmit = async () => {
+  /**
+   * `confirmarRemocoes` só vai na segunda chamada, depois que o professor viu
+   * quem sai da turma. A remoção apaga notas e chamadas em cascata, então o
+   * arquivo é reenviado em vez de o servidor guardar a lista entre as duas
+   * passadas — assim o que ele confirma é sempre o que acabou de ver.
+   */
+  const sincronizar = async (confirmarRemocoes: boolean) => {
     if (!file) return
     if (!selectedClassId) {
       alert('Selecione uma turma.')
@@ -60,16 +66,20 @@ export default function ImportForm({ classes }: { classes: ClassData[] }) {
     }
 
     setIsUploading(true)
-    setResult(null)
 
     try {
       const formData = new FormData()
       formData.append('file', file)
       formData.append('classId', selectedClassId)
+      if (confirmarRemocoes) formData.append('confirmarRemocoes', 'true')
 
       const response = await importExcelAction(formData)
       setResult(response)
-      if (response.success) {
+
+      // O arquivo fica na tela enquanto houver remoção pendente: é ele que
+      // será reenviado na confirmação.
+      const aguardandoConfirmacao = (response.data?.pendingRemovals.length ?? 0) > 0
+      if (response.success && !aguardandoConfirmacao) {
         setFile(null)
         if (fileInputRef.current) fileInputRef.current.value = ''
       }
@@ -79,6 +89,20 @@ export default function ImportForm({ classes }: { classes: ClassData[] }) {
       setIsUploading(false)
     }
   }
+
+  const handleSubmit = () => {
+    setResult(null)
+    return sincronizar(false)
+  }
+
+  const pendingRemovals = result?.data?.pendingRemovals ?? []
+  // Com remoção pendente a sincronização não terminou: o verde de "concluída"
+  // contradiria o aviso logo abaixo.
+  const tom = !result?.success
+    ? { fundo: 'rgba(239, 68, 68, 0.1)', borda: 'rgba(239, 68, 68, 0.2)', cor: '#f87171' }
+    : pendingRemovals.length > 0
+      ? { fundo: 'rgba(245, 158, 11, 0.08)', borda: 'rgba(245, 158, 11, 0.25)', cor: '#f59e0b' }
+      : { fundo: 'rgba(34, 197, 94, 0.1)', borda: 'rgba(34, 197, 94, 0.2)', cor: '#4ade80' }
 
   return (
     <div className="glass-panel" style={{ padding: '40px', maxWidth: '800px', margin: '0 auto' }}>
@@ -153,18 +177,97 @@ export default function ImportForm({ classes }: { classes: ClassData[] }) {
       )}
 
       {result && (
-        <div style={{ marginTop: '32px', padding: '24px', borderRadius: '12px', background: result.success ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', border: `1px solid ${result.success ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'}` }}>
+        <div style={{ marginTop: '32px', padding: '24px', borderRadius: '12px', background: tom.fundo, border: `1px solid ${tom.borda}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: result.success ? '16px' : '0' }}>
-            {result.success ? <CheckCircle color="#4ade80" /> : <XCircle color="#f87171" />}
-            <h3 style={{ color: result.success ? '#4ade80' : '#f87171' }}>{result.message}</h3>
+            {!result.success ? <XCircle color={tom.cor} />
+              : pendingRemovals.length > 0 ? <AlertTriangle color={tom.cor} />
+              : <CheckCircle color={tom.cor} />}
+            <h3 style={{ color: tom.cor }}>{result.message}</h3>
           </div>
           
           {result.success && result.data && (
             <div style={{ paddingLeft: '36px' }}>
               <p><strong>Novos alunos cadastrados:</strong> {result.data.addedStudents}</p>
               <p><strong>Alunos já existentes na turma:</strong> {result.data.updatedStudents}</p>
+              {result.data.lockedStudents > 0 && (
+                <p style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Lock size={14} color="#f87171" />
+                  <span><strong>Trancados pela planilha:</strong> {result.data.lockedStudents} — saíram da chamada</span>
+                </p>
+              )}
+              {result.data.unlockedStudents > 0 && (
+                <p><strong>Destrancados:</strong> {result.data.unlockedStudents} — voltaram para a chamada</p>
+              )}
+              {result.data.removedStudents > 0 && (
+                <p><strong>Removidos da turma:</strong> {result.data.removedStudents}</p>
+              )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* A confirmação da remoção. Nada foi apagado até aqui: a lista mostra
+          exatamente quem sai e o que se perde junto. */}
+      {pendingRemovals.length > 0 && (
+        <div data-testid="remocoes-pendentes" style={{ marginTop: '24px', padding: '24px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+            <AlertTriangle color="#f59e0b" />
+            <h3 style={{ color: '#f59e0b' }}>
+              {pendingRemovals.length === 1
+                ? '1 aluno não consta na planilha'
+                : `${pendingRemovals.length} alunos não constam na planilha`}
+            </h3>
+          </div>
+
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem' }}>
+            Nada foi apagado ainda. Removê-los apaga junto as notas e as chamadas
+            de cada um, <strong>sem possibilidade de desfazer</strong>. Confira a
+            lista antes de confirmar — se a planilha estiver incompleta, é só
+            fechar esta tela e sincronizar de novo com o arquivo certo.
+          </p>
+
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', marginBottom: '20px' }}>
+            <thead>
+              <tr style={{ textAlign: 'left', color: 'var(--text-secondary)' }}>
+                <th style={{ padding: '8px 12px', borderBottom: '1px solid rgba(245, 158, 11, 0.25)' }}>Aluno</th>
+                <th style={{ padding: '8px 12px', borderBottom: '1px solid rgba(245, 158, 11, 0.25)' }}>RGM</th>
+                <th style={{ padding: '8px 12px', borderBottom: '1px solid rgba(245, 158, 11, 0.25)', textAlign: 'center' }}>Notas</th>
+                <th style={{ padding: '8px 12px', borderBottom: '1px solid rgba(245, 158, 11, 0.25)', textAlign: 'center' }}>Chamadas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pendingRemovals.map(aluno => (
+                <tr key={aluno.enrollmentId} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <td style={{ padding: '8px 12px', fontWeight: 500 }}>
+                    {aluno.name}
+                    {aluno.alsoDeletesStudent && (
+                      <span style={{ color: 'var(--text-secondary)', fontWeight: 400, fontSize: '0.8rem' }}> · sai do cadastro</span>
+                    )}
+                  </td>
+                  <td style={{ padding: '8px 12px', color: 'var(--text-secondary)' }}>{aluno.rgm || '—'}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'center', color: aluno.grades > 0 ? '#f87171' : 'var(--text-secondary)' }}>{aluno.grades}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'center', color: aluno.attendances > 0 ? '#f87171' : 'var(--text-secondary)' }}>{aluno.attendances}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <button
+              onClick={() => sincronizar(true)}
+              disabled={isUploading}
+              style={{ padding: '10px 18px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#f87171', cursor: isUploading ? 'wait' : 'pointer', fontWeight: 500 }}
+            >
+              {isUploading ? 'Removendo...' : 'Confirmar e remover'}
+            </button>
+            <button
+              onClick={() => setResult(null)}
+              disabled={isUploading}
+              style={{ padding: '10px 18px', borderRadius: '8px', background: 'transparent', border: '1px solid var(--surface-border)', color: 'var(--text-secondary)', cursor: 'pointer' }}
+            >
+              Manter todos
+            </button>
+          </div>
         </div>
       )}
 
