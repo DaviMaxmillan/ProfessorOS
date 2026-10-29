@@ -122,7 +122,7 @@ export default function ReportsPage() {
       'Faltas': attendance.absences,
       'Frequência (%)': frequencyPercent(attendance) ?? '—',
       'Média Final': finalGrade != null ? parseFloat(finalGrade.toFixed(2)) : '',
-      'Mínimo até aqui': minimo,
+      'Mínimo da Média': minimo,
       'Situação': standingLabel(standing),
       'Status': enrollment.status || 'ATIVO',
     }))
