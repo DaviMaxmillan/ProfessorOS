@@ -4,7 +4,14 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { getFiltersAction, getClassReportAction } from '@/app/actions/reports'
 import { Printer, Filter, FileSpreadsheet } from 'lucide-react'
 import * as XLSX from 'xlsx'
-import { finalGradeOrNull, type GradedActivity } from '@/lib/grades'
+import {
+  finalGradeOrNull,
+  gradeStanding,
+  passingThreshold,
+  standingLabel,
+  type GradeStanding,
+  type GradedActivity,
+} from '@/lib/grades'
 import { frequencyPercent, summarizeAttendance, type AttendanceSummary } from '@/lib/attendance'
 
 /** Os filtros e o relatório vêm das Server Actions — o tipo é o retorno delas. */
@@ -17,6 +24,14 @@ type ReportRow = {
   enrollment: ReportEnrollment
   finalGrade: number | null
   attendance: AttendanceSummary
+  /**
+   * Aprovado/reprovado só quando o semestre fecha; antes disso, em dia ou em
+   * risco. Comparar com 6 fixo reprovava a turma inteira de uma disciplina
+   * "5 + 5 = 10" com um bimestre lançado, onde o teto ainda é 5.
+   */
+  standing: GradeStanding
+  /** O mínimo exigido no ponto atual do semestre. */
+  minimo: number
 }
 
 /**
@@ -79,6 +94,8 @@ export default function ReportsPage() {
       // `attendances`, mas a tela mostrava `enrollment.absences`, um contador
       // que nenhum lugar do sistema escreve — ou seja, zero para todos.
       attendance: summarizeAttendance(enrollment.attendances),
+      standing: gradeStanding(reportData.activities, enrollment.grades, reportData.calculationMethod),
+      minimo: passingThreshold(reportData.activities, enrollment.grades, reportData.calculationMethod),
     }))
   }, [reportData])
 
@@ -88,20 +105,25 @@ export default function ReportsPage() {
   )
 
   const classAverage = averages.length > 0 ? (averages.reduce((a, b) => a + b, 0) / averages.length).toFixed(1) : '0.0'
-  const aboveAverageCount = averages.filter(a => a >= 6).length
-  const belowAverageCount = averages.length - aboveAverageCount
+  const emDia = rows.filter(r => r.standing === 'APROVADO' || r.standing === 'EM_DIA')
+  const aboveAverageCount = emDia.length
+  const belowAverageCount = rows.filter(r => r.standing === 'EM_RISCO' || r.standing === 'REPROVADO').length
+  // O mínimo é o mesmo para a turma toda; basta olhar uma linha com nota.
+  const minimoAtual = rows.find(r => r.finalGrade !== null)?.minimo ?? 0
+  const semestreFechado = rows.some(r => r.standing === 'APROVADO' || r.standing === 'REPROVADO')
 
   // ---- XLSX Export ----
   const exportXLSX = () => {
     if (!reportData) return
-    const sheetRows = rows.map(({ enrollment, finalGrade, attendance }) => ({
+    const sheetRows = rows.map(({ enrollment, finalGrade, attendance, standing, minimo }) => ({
       'Aluno': enrollment.student.name,
       'RGM': enrollment.student.rgm || '',
       'Chamadas': attendance.calls,
       'Faltas': attendance.absences,
       'Frequência (%)': frequencyPercent(attendance) ?? '—',
       'Média Final': finalGrade != null ? parseFloat(finalGrade.toFixed(2)) : '',
-      'Situação': finalGrade != null ? (finalGrade >= 6 ? 'Aprovado' : 'Reprovado') : 'Sem nota',
+      'Mínimo até aqui': minimo,
+      'Situação': standingLabel(standing),
       'Status': enrollment.status || 'ATIVO',
     }))
     const ws = XLSX.utils.json_to_sheet(sheetRows)
@@ -173,8 +195,14 @@ export default function ReportsPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '40px' }}>
             {[
               { label: 'Média Geral da Turma', value: classAverage, color: '#000' },
-              { label: 'Alunos Aprovados (≥ 6)', value: String(aboveAverageCount), color: '#16a34a' },
-              { label: 'Alunos em Risco (< 6)', value: String(belowAverageCount), color: '#dc2626' },
+              {
+                label: semestreFechado
+                  ? `Alunos Aprovados (≥ ${minimoAtual})`
+                  : `Alunos em Dia (≥ ${minimoAtual})`,
+                value: String(aboveAverageCount),
+                color: '#16a34a',
+              },
+              { label: `Alunos em Risco (< ${minimoAtual})`, value: String(belowAverageCount), color: '#dc2626' },
             ].map(stat => (
               <div key={stat.label} style={{ border: '1px solid #ddd', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
                 <p style={{ color: '#666', fontSize: '0.9rem', marginBottom: '4px' }}>{stat.label}</p>
@@ -197,8 +225,8 @@ export default function ReportsPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ enrollment: enr, finalGrade, attendance }) => {
-                const isApproved = finalGrade != null && finalGrade >= 6
+              {rows.map(({ enrollment: enr, finalGrade, attendance, standing }) => {
+                const isApproved = standing === 'APROVADO' || standing === 'EM_DIA'
                 return (
                   <tr key={enr.id} style={{ borderBottom: '1px solid #eee', background: finalGrade == null ? '#fafafa' : 'transparent' }}>
                     <td style={{ padding: '12px' }}>{enr.student.name}</td>
@@ -213,7 +241,7 @@ export default function ReportsPage() {
                     <td style={{ padding: '12px', textAlign: 'center' }}>
                       {finalGrade != null ? (
                         <span style={{ background: isApproved ? '#dcfce7' : '#fee2e2', color: isApproved ? '#16a34a' : '#dc2626', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                          {isApproved ? 'Aprovado' : 'Reprovado'}
+                          {standingLabel(standing)}
                         </span>
                       ) : (
                         <span style={{ background: '#f3f4f6', color: '#6b7280', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem' }}>Sem nota</span>

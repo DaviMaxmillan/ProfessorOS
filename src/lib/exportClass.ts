@@ -7,7 +7,7 @@
 
 import * as XLSX from 'xlsx'
 import type { ClassDetail } from './types'
-import { calculateGrades, isPassing } from './grades'
+import { calculateGrades, gradeStanding, passingThreshold, standingLabel } from './grades'
 import { attendanceDateKey, frequencyPercent, isBelowMinFrequency, summarizeAttendance } from './attendance'
 import { isActiveEnrollment } from './roster'
 
@@ -56,7 +56,10 @@ export function buildGradesSheet(classData: ClassDetail): XLSX.WorkSheet {
       afActs.forEach((a) => { row[`AF – ${a.name}`] = gradeMap[a.id] ?? '' })
     }
     row['Média Final'] = avgs.final
-    row['Situação'] = isPassing(avgs.final) ? 'Aprovado' : 'Em Risco'
+    // O mínimo acompanha o que já foi corrigido, em vez do 6 fixo: com meio
+    // semestre lançado numa turma "5 + 5", o teto é 5 e o mínimo é 3.
+    row['Mínimo até aqui'] = passingThreshold(classData.activities, e.grades, classData.calculationMethod)
+    row['Situação'] = standingLabel(gradeStanding(classData.activities, e.grades, classData.calculationMethod))
     return row
   })
 

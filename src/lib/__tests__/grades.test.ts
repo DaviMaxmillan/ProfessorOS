@@ -3,6 +3,12 @@ import {
   PASSING_GRADE,
   calculateGrades,
   finalGradeOrNull,
+  gradeStanding,
+  isGradeAtRisk,
+  isSemesterComplete,
+  maxAttainable,
+  passingThreshold,
+  standingLabel,
   isPassing,
   isValidGradeValue,
   parseGradeInput,
@@ -237,5 +243,136 @@ describe('parseGradeInput', () => {
     if (!r.ok) return
     expect(r.toSave).toEqual([])
     expect(r.toRemove).toEqual([])
+  })
+})
+
+describe('situação ao longo do semestre', () => {
+  /** A turma do professor: "5 + 5 = 10", dois bimestres de peso 5. */
+  const cincoMaisCinco: GradedActivity[] = [
+    { id: 'b1p1', bimester: 1, weight: 2.5 },
+    { id: 'b1p2', bimester: 1, weight: 2.5 },
+    { id: 'b2p1', bimester: 2, weight: 2.5 },
+    { id: 'b2p2', bimester: 2, weight: 2.5 },
+  ]
+
+  const soB1 = (valor: number) => notas({ b1p1: valor, b1p2: valor })
+  const semestreTodo = (b1: number, b2: number) =>
+    notas({ b1p1: b1, b1p2: b1, b2p1: b2, b2p2: b2 })
+
+  describe('maxAttainable', () => {
+    it('é 5 quando só o primeiro bimestre de uma turma 5+5 foi corrigido', () => {
+      expect(maxAttainable(cincoMaisCinco, soB1(10), 'SUM')).toBe(5)
+    })
+
+    it('é 10 com o semestre inteiro corrigido', () => {
+      expect(maxAttainable(cincoMaisCinco, semestreTodo(10, 10), 'SUM')).toBe(10)
+    })
+
+    it('conta só as atividades que têm nota', () => {
+      expect(maxAttainable(cincoMaisCinco, notas({ b1p1: 10 }), 'SUM')).toBe(2.5)
+    })
+
+    it('é zero sem nota nenhuma', () => {
+      expect(maxAttainable(cincoMaisCinco, [], 'SUM')).toBe(0)
+    })
+
+    it('respeita o método AVERAGE', () => {
+      // Com média, um bimestre corrigido rende metade do teto.
+      expect(maxAttainable(atividades, notas({ 'b1-prova': 10, 'b1-trab': 10 }), 'AVERAGE')).toBe(5)
+      expect(maxAttainable(atividades, notas({
+        'b1-prova': 10, 'b1-trab': 10, 'b2-prova': 10, 'b2-trab': 10,
+      }), 'AVERAGE')).toBe(10)
+    })
+  })
+
+  describe('passingThreshold', () => {
+    it('é 3 com um bimestre de 5 corrigido — o caso que o professor relatou', () => {
+      expect(passingThreshold(cincoMaisCinco, soB1(10), 'SUM')).toBe(3)
+    })
+
+    it('volta a ser 6 com o semestre inteiro corrigido', () => {
+      expect(passingThreshold(cincoMaisCinco, semestreTodo(10, 10), 'SUM')).toBe(6)
+    })
+  })
+
+  describe('isSemesterComplete', () => {
+    it('não considera fechado com um bimestre só', () => {
+      expect(isSemesterComplete(cincoMaisCinco, soB1(10))).toBe(false)
+    })
+
+    it('considera fechado com tudo lançado', () => {
+      expect(isSemesterComplete(cincoMaisCinco, semestreTodo(7, 7))).toBe(true)
+    })
+
+    it('não considera fechado quando o 2º bimestre ainda não existe', () => {
+      // Senão o aluno apareceria aprovado em março, antes de o professor
+      // sequer cadastrar as atividades do segundo bimestre.
+      const soComB1: GradedActivity[] = [
+        { id: 'b1p1', bimester: 1, weight: 5 },
+        { id: 'b1p2', bimester: 1, weight: 5 },
+      ]
+      expect(isSemesterComplete(soComB1, notas({ b1p1: 10, b1p2: 10 }))).toBe(false)
+    })
+
+    it('a AF não é exigida para fechar o semestre', () => {
+      expect(isSemesterComplete(comAf, notas({
+        'b1-prova': 7, 'b1-trab': 7, 'b2-prova': 7, 'b2-trab': 7,
+      }))).toBe(true)
+    })
+  })
+
+  describe('gradeStanding', () => {
+    it('não marca em risco quem tirou o máximo no único bimestre corrigido', () => {
+      // Era este o bug: com teto de 5, nem o aluno de nota 10 chegava a 6,
+      // então a lista de risco acusava a turma inteira.
+      expect(gradeStanding(cincoMaisCinco, soB1(10), 'SUM')).toBe('EM_DIA')
+      expect(isGradeAtRisk(cincoMaisCinco, soB1(10), 'SUM')).toBe(false)
+    })
+
+    it('marca em dia exatamente no limiar', () => {
+      // 6 nas duas provas dá B1 = 3, que é o mínimo proporcional.
+      expect(gradeStanding(cincoMaisCinco, soB1(6), 'SUM')).toBe('EM_DIA')
+    })
+
+    it('marca em risco logo abaixo do limiar', () => {
+      expect(gradeStanding(cincoMaisCinco, soB1(5), 'SUM')).toBe('EM_RISCO')
+      expect(isGradeAtRisk(cincoMaisCinco, soB1(5), 'SUM')).toBe(true)
+    })
+
+    it('fecha em aprovado ou reprovado quando o semestre acaba', () => {
+      expect(gradeStanding(cincoMaisCinco, semestreTodo(6, 6), 'SUM')).toBe('APROVADO')
+      expect(gradeStanding(cincoMaisCinco, semestreTodo(4, 4), 'SUM')).toBe('REPROVADO')
+    })
+
+    it('não diz reprovado antes do fim do semestre', () => {
+      // Com meio semestre pela frente, "reprovado" é informação errada.
+      expect(gradeStanding(cincoMaisCinco, soB1(2), 'SUM')).toBe('EM_RISCO')
+    })
+
+    it('devolve SEM_NOTA quando nada foi lançado', () => {
+      expect(gradeStanding(cincoMaisCinco, [], 'SUM')).toBe('SEM_NOTA')
+      expect(isGradeAtRisk(cincoMaisCinco, [], 'SUM')).toBe(false)
+    })
+
+    it('reprovado entra na lista de risco', () => {
+      expect(isGradeAtRisk(cincoMaisCinco, semestreTodo(4, 4), 'SUM')).toBe(true)
+    })
+
+    it('continua certo na turma de 10 + 10 com média', () => {
+      const meio = notas({ 'b1-prova': 7, 'b1-trab': 7 })
+      // Teto 5, limiar 3; a média final com um bimestre é 3.5.
+      expect(passingThreshold(atividades, meio, 'AVERAGE')).toBe(3)
+      expect(gradeStanding(atividades, meio, 'AVERAGE')).toBe('EM_DIA')
+    })
+  })
+
+  describe('standingLabel', () => {
+    it('dá um rótulo para cada situação', () => {
+      expect(standingLabel('SEM_NOTA')).toBe('Sem nota')
+      expect(standingLabel('EM_DIA')).toBe('Em dia')
+      expect(standingLabel('EM_RISCO')).toBe('Em risco')
+      expect(standingLabel('APROVADO')).toBe('Aprovado')
+      expect(standingLabel('REPROVADO')).toBe('Reprovado')
+    })
   })
 })

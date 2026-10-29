@@ -93,6 +93,32 @@ quando o aluno está abaixo da média, e substitui o bimestre de menor nota.
 Se essa regra precisar mudar, mude num lugar só e ajuste
 `src/lib/__tests__/grades.test.ts` — os testes documentam cada caso.
 
+### O mínimo acompanha o que já foi corrigido
+
+A nota de aprovação é 6, mas 6 só faz sentido quando a turma vale 10 **e** o
+semestre inteiro já foi lançado. Numa turma configurada como "5 + 5 = 10", um
+bimestre vale no máximo 5: com só o primeiro corrigido, nem o aluno que tirou
+10 nas duas provas chegava a 6, e a lista de alunos em risco acusava a turma
+inteira — a taxa de aprovação ficava em 0%.
+
+`gradeStanding` responde em que pé o aluno está, considerando o ponto do
+semestre:
+
+| Situação | Quando |
+| --- | --- |
+| `SEM_NOTA` | nenhuma nota lançada |
+| `EM_DIA` / `EM_RISCO` | semestre em andamento, comparado a 60% do que dava para alcançar com o que já foi corrigido |
+| `APROVADO` / `REPROVADO` | semestre fechado, comparado aos 6 |
+
+O semestre só é considerado fechado quando os dois bimestres têm atividade
+cadastrada e todas estão com nota. Sem essa exigência, um primeiro bimestre
+corrigido antes de o segundo existir seria lido como semestre completo, e o
+aluno apareceria aprovado em março. A AF não é exigida — ela só pode subir a
+nota.
+
+O diário mostra o mínimo vigente ao lado do seletor de cálculo, e a planilha
+traz a coluna "Mínimo até aqui", para o número não parecer arbitrário.
+
 ## Nada é salvo sozinho — e a tela diz o que falta
 
 O diário de notas e a chamada guardam o que está digitado antes de gravar. Duas
