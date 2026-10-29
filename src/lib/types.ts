@@ -29,6 +29,10 @@ export const classDetailInclude = Prisma.validator<Prisma.ClassInclude>()({
     include: {
       student: true,
       grades: true,
+      // A chamada da aba de frequência. Sem isso a aba não tinha como mostrar
+      // o que já estava salvo: ao recarregar a página, a turma inteira voltava
+      // a aparecer como presente.
+      attendances: true,
     },
     orderBy: {
       student: {
@@ -114,6 +118,7 @@ export type NoteCreateInput = NoteInput & { content: string }
 export const enrollmentWithClassInclude = Prisma.validator<Prisma.EnrollmentInclude>()({
   student: true,
   grades: true,
+  attendances: true,
   class: {
     include: { subject: true, semester: true, scheduleEntries: true, activities: true },
   },

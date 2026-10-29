@@ -10,13 +10,17 @@ import {
   parseGradeInput,
   type GradeInput,
 } from '@/lib/grades'
+import { attendanceDate } from '@/lib/attendance'
 
 export async function saveProvisionalAttendanceAction(classId: string, date: string, attendanceData: Record<string, boolean>) {
   await requireAuth()
 
   try {
-    const targetDate = new Date(date)
-    if (isNaN(targetDate.getTime())) {
+    // A data é a chave do registro (`@@unique([enrollmentId, date])`), então
+    // gravar e ler precisam concordar no formato. `attendanceDate` é o mesmo
+    // normalizador que a aba e a exportação usam para comparar.
+    const targetDate = attendanceDate(date)
+    if (!targetDate) {
       return { success: false, message: 'Data inválida.' }
     }
 

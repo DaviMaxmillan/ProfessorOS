@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { requireAuth } from '@/lib/auth'
 import { enrollmentWithClassInclude, type EnrollmentWithClass } from '@/lib/types'
 import { finalGradeOrNull, isPassing } from '@/lib/grades'
+import { isAbsenceAtRisk, summarizeAttendance } from '@/lib/attendance'
 
 export default async function DashboardPage() {
   await requireAuth()
@@ -32,9 +33,11 @@ export default async function DashboardPage() {
   const atRiskStudents: { name: string; rgm: string | null; classLabel: string; classId: string; reason: string }[] = []
 
   allEnrollments.forEach(enrollment => {
-    const totalAulas = enrollment.class.scheduleEntries.filter(se => !se.isHoliday).length
-    const absenceRate = totalAulas > 0 ? enrollment.absences / totalAulas : 0
-    const hasAbsenceRisk = absenceRate >= 0.25 && totalAulas > 0
+    // A frequência sai das chamadas salvas. Antes saía de `enrollment.absences`,
+    // um contador que nenhum lugar do sistema escreve — então ninguém era
+    // sinalizado por falta, nem quem tinha faltado a tudo.
+    const frequencia = summarizeAttendance(enrollment.attendances)
+    const hasAbsenceRisk = isAbsenceAtRisk(frequencia)
 
     // Mesmo cálculo do diário de notas. Antes esta lista somava as notas cruas:
     // com o método SUM a soma nunca ficava abaixo de 6, então nenhum aluno era
