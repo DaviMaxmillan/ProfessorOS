@@ -5,7 +5,7 @@ import { BookOpen, Users, Calendar, AlertTriangle, TrendingUp } from 'lucide-rea
 import Link from 'next/link'
 import { requireAuth } from '@/lib/auth'
 import { enrollmentWithClassInclude, type EnrollmentWithClass } from '@/lib/types'
-import { finalGradeOrNull, isPassing } from '@/lib/grades'
+import { gradeStanding, isGradeAtRisk } from '@/lib/grades'
 import { isAbsenceAtRisk, summarizeAttendance } from '@/lib/attendance'
 
 export default async function DashboardPage() {
@@ -39,21 +39,22 @@ export default async function DashboardPage() {
     const frequencia = summarizeAttendance(enrollment.attendances)
     const hasAbsenceRisk = isAbsenceAtRisk(frequencia)
 
-    // Mesmo cálculo do diário de notas. Antes esta lista somava as notas cruas:
-    // com o método SUM a soma nunca ficava abaixo de 6, então nenhum aluno era
-    // sinalizado por nota baixa — o alerta simplesmente não funcionava.
-    const gradeAvg = finalGradeOrNull(
+    // O risco é medido contra o que já foi corrigido, não contra o 6 fixo.
+    //
+    // Numa turma configurada como "5 + 5 = 10", um bimestre vale no máximo 5:
+    // com só o primeiro lançado, nem o aluno de nota 10 chegava a 6, e o
+    // alerta acusava a turma inteira. Ver `gradeStanding` em src/lib/grades.ts.
+    const hasGradeRisk = isGradeAtRisk(
       enrollment.class.activities,
       enrollment.grades,
       enrollment.class.calculationMethod
     )
-    const hasGradeRisk = gradeAvg !== null && !isPassing(gradeAvg)
 
     if (hasAbsenceRisk || hasGradeRisk) {
       let reason = ''
       if (hasAbsenceRisk && hasGradeRisk) reason = '🔴 Faltas + Nota baixa'
       else if (hasAbsenceRisk) reason = '🟠 Faltas excessivas'
-      else reason = '🟡 Nota abaixo da média'
+      else reason = '🟡 Nota abaixo do mínimo até aqui'
 
       atRiskStudents.push({
         name: enrollment.student.name,
@@ -211,10 +212,11 @@ function ApprovalDonut({ enrollments }: { enrollments: EnrollmentWithClass[] }) 
   let noData = 0
 
   enrollments.forEach(e => {
-    // Mesmo cálculo do diário de notas — ver src/lib/grades.ts.
-    const avg = finalGradeOrNull(e.class.activities, e.grades, e.class.calculationMethod)
-    if (avg === null) { noData++; return }
-    if (isPassing(avg)) approved++
+    // "Em dia" conta como aprovado enquanto o semestre não fecha: com meio
+    // semestre pela frente, reprovar quem está indo bem é informação errada.
+    const situacao = gradeStanding(e.class.activities, e.grades, e.class.calculationMethod)
+    if (situacao === 'SEM_NOTA') { noData++; return }
+    if (situacao === 'APROVADO' || situacao === 'EM_DIA') approved++
     else failed++
   })
 

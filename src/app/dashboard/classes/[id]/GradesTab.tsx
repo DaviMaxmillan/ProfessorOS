@@ -13,7 +13,7 @@ import {
   type GradeDraft,
 } from '@/lib/gradeDraft'
 import type { ClassDetail } from '@/lib/types'
-import { calculateGrades, type GradeInput } from '@/lib/grades'
+import { calculateGrades, gradeStanding, passingThreshold, type GradeEntry, type GradeInput } from '@/lib/grades'
 
 type GradesTabProps = {
   classData: ClassDetail
@@ -86,15 +86,18 @@ export default function GradesTab({ classData, draft, setDraft, pendentes }: Gra
     await updateClassCalculationMethod(classData.id, method)
   }
 
-  const calculateFinalAvg = (enrollmentId: string) => {
-    // As notas em edição vivem em `gradesState`, então são convertidas para o
-    // formato do cálculo compartilhado. Só entram as que têm valor: uma célula
-    // vazia é "sem nota", não "zero".
-    const grades = classData.activities
+  /**
+   * As notas que estão na tela, no formato do cálculo compartilhado.
+   *
+   * Só entram as que têm valor: uma célula vazia é "sem nota", não "zero".
+   */
+  const notasDaTela = (enrollmentId: string): GradeEntry[] =>
+    classData.activities
       .map(act => ({ activityId: act.id, value: gradesState[enrollmentId]?.[act.id] }))
-      .filter((g): g is { activityId: string; value: number } => typeof g.value === 'number')
+      .filter((g): g is GradeEntry => typeof g.value === 'number')
 
-    const r = calculateGrades(classData.activities, grades, calcMethod)
+  const calculateFinalAvg = (enrollmentId: string) => {
+    const r = calculateGrades(classData.activities, notasDaTela(enrollmentId), calcMethod)
 
     return {
       b1Avg: r.b1Avg.toFixed(1),
@@ -103,6 +106,21 @@ export default function GradesTab({ classData, draft, setDraft, pendentes }: Gra
       final: r.final.toFixed(1),
     }
   }
+
+  /**
+   * O mínimo exigido no ponto atual do semestre, para a turma.
+   *
+   * É o mesmo para todos que têm as mesmas atividades corrigidas; basta olhar
+   * quem já tem nota.
+   */
+  const minimoDaTurma = (() => {
+    for (const e of classData.enrollments) {
+      const notas = notasDaTela(e.id)
+      if (notas.length > 0) return passingThreshold(classData.activities, notas, calcMethod)
+    }
+    return null
+  })()
+
 
   const handleCreateActivity = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -258,6 +276,13 @@ export default function GradesTab({ classData, draft, setDraft, pendentes }: Gra
               <option value="SUM">Soma (Ex: Max 5 + Max 5 = 10)</option>
               <option value="AVERAGE">Média (Ex: (10 + 10) / 2 = 10)</option>
             </select>
+            {/* O mínimo acompanha o que já foi corrigido, então vale dizer
+                qual é — senão a cor da média final parece arbitrária. */}
+            {minimoDaTurma !== null && (
+              <span style={{ marginLeft: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                Mínimo até aqui: <strong style={{ color: 'var(--text-primary)' }}>{minimoDaTurma.toFixed(1)}</strong>
+              </span>
+            )}
           </div>
         </div>
         
@@ -396,7 +421,11 @@ export default function GradesTab({ classData, draft, setDraft, pendentes }: Gra
           <tbody>
             {classData.enrollments.map((enrollment, index: number) => {
               const avgs = calculateFinalAvg(enrollment.id)
-              const isApproved = parseFloat(avgs.final) >= 6.0
+              // O mínimo acompanha o que já foi corrigido. Numa turma
+              // "5 + 5 = 10" com um bimestre lançado o teto é 5, e comparar
+              // com 6 pintava de vermelho até quem tirou 10 nas duas provas.
+              const situacao = gradeStanding(classData.activities, notasDaTela(enrollment.id), calcMethod)
+              const isApproved = situacao === 'APROVADO' || situacao === 'EM_DIA'
 
               // Tinta da linha: status do aluno tem prioridade, senão o
               // zebrado. `null` quando a linha não recebe cor nenhuma.

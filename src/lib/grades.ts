@@ -46,6 +46,10 @@ export type GradeSummary = {
 /** Nota mínima para aprovação. */
 export const PASSING_GRADE = 6
 
+/** Faixa aceita para uma nota lançada. */
+export const MIN_GRADE = 0
+export const MAX_GRADE = 10
+
 /**
  * A soma ponderada de um bimestre é dividida por 10 porque os pesos das
  * atividades de um bimestre somam 10 (ex.: 3 + 2 + 5).
@@ -117,6 +121,128 @@ export function isPassing(final: number): boolean {
   return final >= PASSING_GRADE
 }
 
+// ---- Situação do aluno ao longo do semestre ----
+
+/**
+ * A fração da nota máxima necessária para passar: 60%.
+ *
+ * O 6 sozinho só vale quando a nota máxima da turma é 10 e o semestre inteiro
+ * já foi corrigido. Em qualquer outro momento o que vale é a proporção.
+ */
+export const PASSING_RATIO = PASSING_GRADE / MAX_GRADE
+
+/**
+ * O máximo que o aluno poderia ter alcançado nas atividades já corrigidas.
+ *
+ * Numa turma configurada como "5 + 5 = 10", um bimestre vale no máximo 5. Com
+ * só o primeiro bimestre lançado, a maior nota possível é 5 — então comparar
+ * com 6 marcava a turma inteira como em risco, inclusive quem tirou 10 nas
+ * duas provas.
+ *
+ * A AF fica de fora porque ela só pode subir a nota final, nunca baixá-la.
+ */
+export function maxAttainable(
+  activities: GradedActivity[],
+  grades: GradeEntry[],
+  method: CalculationMethod | string
+): number {
+  const lancadas = new Set(grades.map(g => g.activityId))
+
+  // A nota máxima de uma atividade é MAX_GRADE, então o teto de um bimestre é
+  // a soma dos pesos das atividades corrigidas (o cálculo divide por 10).
+  const tetoDoBimestre = (bimester: number) =>
+    activities
+      .filter(a => a.bimester === bimester && lancadas.has(a.id))
+      .reduce((soma, a) => soma + a.weight, 0) * MAX_GRADE / WEIGHT_TOTAL
+
+  const b1 = tetoDoBimestre(1)
+  const b2 = tetoDoBimestre(2)
+
+  return method === 'AVERAGE' ? (b1 + b2) / 2 : b1 + b2
+}
+
+/**
+ * A nota mínima para o aluno estar em dia neste ponto do semestre.
+ *
+ * É 60% do que dava para alcançar com o que já foi corrigido: 6 quando o
+ * semestre inteiro está lançado numa turma de 0 a 10, e 3 quando só um
+ * bimestre de "5 + 5" foi corrigido.
+ */
+export function passingThreshold(
+  activities: GradedActivity[],
+  grades: GradeEntry[],
+  method: CalculationMethod | string
+): number {
+  return round2(maxAttainable(activities, grades, method) * PASSING_RATIO)
+}
+
+/**
+ * O semestre deste aluno já está todo corrigido?
+ *
+ * Exige que os dois bimestres tenham atividade cadastrada e que todas tenham
+ * nota. Sem isso, um primeiro bimestre corrigido antes de o segundo existir
+ * seria lido como semestre fechado, e o aluno apareceria aprovado em março.
+ */
+export function isSemesterComplete(
+  activities: GradedActivity[],
+  grades: GradeEntry[]
+): boolean {
+  const lancadas = new Set(grades.map(g => g.activityId))
+  const b1 = activities.filter(a => a.bimester === 1)
+  const b2 = activities.filter(a => a.bimester === 2)
+
+  if (b1.length === 0 || b2.length === 0) return false
+  return [...b1, ...b2].every(a => lancadas.has(a.id))
+}
+
+/** A situação do aluno, conforme o ponto do semestre. */
+export type GradeStanding = 'SEM_NOTA' | 'EM_DIA' | 'EM_RISCO' | 'APROVADO' | 'REPROVADO'
+
+/**
+ * Em que pé está o aluno.
+ *
+ * Com o semestre fechado a resposta é aprovado ou reprovado, pela média final.
+ * Antes disso é "em dia" ou "em risco", medido contra o que já foi corrigido —
+ * chamar de reprovado quem ainda tem meio semestre pela frente não ajuda
+ * ninguém, e era o que acontecia.
+ */
+export function gradeStanding(
+  activities: GradedActivity[],
+  grades: GradeEntry[],
+  method: CalculationMethod | string
+): GradeStanding {
+  if (grades.length === 0) return 'SEM_NOTA'
+
+  const { final } = calculateGrades(activities, grades, method)
+
+  if (isSemesterComplete(activities, grades)) {
+    return isPassing(final) ? 'APROVADO' : 'REPROVADO'
+  }
+
+  return final >= passingThreshold(activities, grades, method) ? 'EM_DIA' : 'EM_RISCO'
+}
+
+/** O aluno está em risco pela nota? Serve para a lista de alertas. */
+export function isGradeAtRisk(
+  activities: GradedActivity[],
+  grades: GradeEntry[],
+  method: CalculationMethod | string
+): boolean {
+  const situacao = gradeStanding(activities, grades, method)
+  return situacao === 'EM_RISCO' || situacao === 'REPROVADO'
+}
+
+/** Rótulo curto da situação, para tabelas e planilhas. */
+export function standingLabel(standing: GradeStanding): string {
+  switch (standing) {
+    case 'SEM_NOTA': return 'Sem nota'
+    case 'EM_DIA': return 'Em dia'
+    case 'EM_RISCO': return 'Em risco'
+    case 'APROVADO': return 'Aprovado'
+    case 'REPROVADO': return 'Reprovado'
+  }
+}
+
 /**
  * Média final de um aluno a partir da matrícula. Devolve null quando não há
  * nota nenhuma lançada — o que é diferente de ter tirado zero.
@@ -131,10 +257,6 @@ export function finalGradeOrNull(
 }
 
 // ---- Entrada de notas ----
-
-/** Faixa aceita para uma nota lançada. */
-export const MIN_GRADE = 0
-export const MAX_GRADE = 10
 
 /**
  * O que a tela envia para cada aluno ao salvar uma atividade:

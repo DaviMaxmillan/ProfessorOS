@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation'
 import { deleteClassAction, updateClassAction } from '@/app/actions/classes'
 import { exportAllXLSX } from '@/lib/exportClass'
 import type { ClassDetail } from '@/lib/types'
-import { finalGradeOrNull, isPassing } from '@/lib/grades'
+import { finalGradeOrNull, gradeStanding, passingThreshold } from '@/lib/grades'
 
 export default function ClassHeader({ classData }: { classData: ClassDetail }) {
   const router = useRouter()
@@ -144,12 +144,22 @@ function QuickStats({ classData }: { classData: ClassDetail }) {
   let passCount = 0
   let validCount = 0
 
+  // O mínimo muda conforme o que já foi corrigido: numa turma "5 + 5 = 10"
+  // com um bimestre lançado, o teto é 5 e o mínimo é 3. Comparar com 6 fixo
+  // dava 0% de aprovação para uma turma inteira indo bem.
+  let minimoAtual = 0
+
   activeEnrollments.forEach((e) => {
     const final = finalGradeOrNull(classData.activities, e.grades, classData.calculationMethod)
     if (final === null) return
 
     avgSum += final
-    if (isPassing(final)) passCount++
+    const situacao = gradeStanding(classData.activities, e.grades, classData.calculationMethod)
+    if (situacao === 'APROVADO' || situacao === 'EM_DIA') passCount++
+    minimoAtual = Math.max(
+      minimoAtual,
+      passingThreshold(classData.activities, e.grades, classData.calculationMethod)
+    )
     validCount++
   })
 
@@ -158,7 +168,7 @@ function QuickStats({ classData }: { classData: ClassDetail }) {
 
   const stats = [
     { label: 'Alunos Ativos', value: String(total), color: 'var(--accent)', suffix: '' },
-    { label: 'Média Geral', value: classAvg, color: parseFloat(classAvg) >= 6 ? 'var(--success)' : parseFloat(classAvg) > 0 ? '#f59e0b' : 'var(--text-secondary)', suffix: '' },
+    { label: 'Média Geral', value: classAvg, color: parseFloat(classAvg) >= minimoAtual ? 'var(--success)' : parseFloat(classAvg) > 0 ? '#f59e0b' : 'var(--text-secondary)', suffix: '' },
     { label: 'Taxa de Aprovação', value: passRate !== null ? String(passRate) : '—', color: passRate !== null ? (passRate >= 70 ? 'var(--success)' : '#f59e0b') : 'var(--text-secondary)', suffix: passRate !== null ? '%' : '' },
     { label: 'Atividades', value: String(classData.activities?.length ?? 0), color: 'var(--text-secondary)', suffix: '' },
   ]
