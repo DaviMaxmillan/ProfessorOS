@@ -93,6 +93,31 @@ quando o aluno está abaixo da média, e substitui o bimestre de menor nota.
 Se essa regra precisar mudar, mude num lugar só e ajuste
 `src/lib/__tests__/grades.test.ts` — os testes documentam cada caso.
 
+## Como a frequência é contada
+
+A chamada da aba "Frequência Provisória" é a única fonte: cada registro é uma
+matrícula numa data, presente ou ausente (tabela `AttendanceRecord`). Faltas e
+frequência são derivadas desses registros em `src/lib/attendance.ts`, e todas as
+telas usam esse cálculo — a própria aba, a visão geral, os relatórios e a
+exportação em Excel.
+
+A frequência é calculada sobre as **chamadas feitas**, não sobre as aulas
+previstas no cronograma: enquanto o semestre corre, as duas coisas são
+diferentes, e dividir pelas aulas previstas faria todo mundo parecer faltoso em
+março. A planilha mostra as duas colunas para a comparação ficar à vista.
+
+Sem chamada nenhuma a frequência é `null`, não 100% — "ninguém foi chamado" é
+diferente de "todos presentes". A lista de alunos em risco da visão geral exige
+pelo menos 4 chamadas antes de sinalizar alguém por falta
+(`MIN_CALLS_FOR_RISK`), para a primeira chamada do semestre não acusar a turma
+inteira. A planilha não aplica esse piso: ali a situação aparece ao lado da
+porcentagem, e "Regular" ao lado de 0% seria contraditório.
+
+O campo `Enrollment.absences` do schema não é mais lido por nada. Ele era um
+contador que nenhum lugar do sistema escrevia, e era de onde a exportação, a
+visão geral e os relatórios tiravam as faltas — por isso mostravam 0 falta e
+100% de frequência mesmo com a chamada feita e salva.
+
 ## Scripts
 
 | Comando                | O que faz                             |
@@ -126,8 +151,9 @@ confirmar.
 
 ## Testes
 
-**Unitários** (`npm test`) cobrem a lógica pura: cálculo de notas, feriados,
-assinatura de sessão, rate limit e tratamento de erros. Não precisam de banco.
+**Unitários** (`npm test`) cobrem a lógica pura: cálculo de notas, frequência,
+feriados, assinatura de sessão, rate limit e tratamento de erros. Não precisam
+de banco.
 
 **Ponta a ponta** (`npm run test:e2e`) sobem a aplicação de produção contra um
 PostgreSQL real e cobrem o que não dá para testar isoladamente: o fluxo de

@@ -214,3 +214,17 @@ export async function notasDaAtividade(activityId: string): Promise<Record<strin
   const grades = await db.grade.findMany({ where: { activityId } })
   return Object.fromEntries(grades.map(g => [g.enrollmentId, g.value]))
 }
+
+/** A chamada gravada numa data, por enrollmentId. */
+export async function chamadaDaData(
+  classId: string,
+  data: string
+): Promise<Record<string, boolean>> {
+  const registros = await db.attendanceRecord.findMany({
+    where: {
+      date: new Date(`${data}T00:00:00.000Z`),
+      enrollment: { classId },
+    },
+  })
+  return Object.fromEntries(registros.map(r => [r.enrollmentId, r.present]))
+}

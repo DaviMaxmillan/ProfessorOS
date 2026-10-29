@@ -8,6 +8,7 @@
 import * as XLSX from 'xlsx'
 import type { ClassDetail } from './types'
 import { calculateGrades, isPassing } from './grades'
+import { attendanceDateKey, frequencyPercent, isBelowMinFrequency, summarizeAttendance } from './attendance'
 
 /** Uma linha de planilha: cabeçalho da coluna -> valor da célula. */
 type SheetRow = Record<string, string | number>
@@ -61,25 +62,65 @@ export function buildGradesSheet(classData: ClassDetail): XLSX.WorkSheet {
   return XLSX.utils.json_to_sheet(rows)
 }
 
+/**
+ * Consolidado de frequência, somando as chamadas salvas.
+ *
+ * Antes esta planilha lia `enrollment.absences`, um contador que nenhum lugar
+ * do sistema escreve: saía sempre 0 faltas e 100% de frequência, mesmo com a
+ * chamada feita e salva. Agora sai das chamadas de verdade.
+ */
 export function buildAttendanceSheet(classData: ClassDetail): XLSX.WorkSheet {
-  // Consolidated absences per student (from scheduleEntries attendance records)
+  // Aulas previstas no cronograma, para comparar com o que já foi chamado.
+  const aulasPrevistas = classData.scheduleEntries?.filter((se) => !se.isHoliday).length ?? 0
+
   const rows = classData.enrollments.map((e, i) => {
-    const totalAulas = classData.scheduleEntries?.filter((se) => !se.isHoliday).length ?? 0
-    const absences = e.absences ?? 0
-    const presences = Math.max(0, totalAulas - absences)
-    const freqPct = totalAulas > 0 ? ((presences / totalAulas) * 100).toFixed(1) : '—'
+    const resumo = summarizeAttendance(e.attendances)
+    const pct = frequencyPercent(resumo)
 
     return {
       'Nº': i + 1,
       'Nome': e.student.name,
       'RGM': e.student.rgm || '',
-      'Total de Aulas': totalAulas,
-      'Presenças': presences,
-      'Faltas': absences,
-      'Frequência (%)': freqPct !== '—' ? parseFloat(freqPct) : '—',
-      'Situação': freqPct !== '—' ? (parseFloat(freqPct) >= 75 ? 'Regular' : '⚠ Risco de Reprovação') : '—',
+      'Aulas Previstas': aulasPrevistas,
+      'Chamadas Feitas': resumo.calls,
+      'Presenças': resumo.presences,
+      'Faltas': resumo.absences,
+      'Frequência (%)': pct ?? '—',
+      'Situação':
+        pct === null
+          ? 'Sem chamada'
+          : isBelowMinFrequency(resumo)
+            ? '⚠ Abaixo de 75%'
+            : 'Regular',
     }
   })
+
+  return XLSX.utils.json_to_sheet(rows)
+}
+
+/**
+ * A chamada de uma data, como está na tela.
+ *
+ * Existe porque a aba de frequência tem um botão de exportar ao lado do de
+ * salvar: sem esta aba na planilha, exportar depois de fazer a chamada
+ * devolvia só o consolidado, sem sinal do que acabou de ser marcado.
+ */
+export function buildRollCallSheet(
+  classData: ClassDetail,
+  date: string,
+  attendance: Record<string, boolean>
+): XLSX.WorkSheet {
+  const dataBR = attendanceDateKey(date)
+    ? new Date(`${attendanceDateKey(date)}T00:00:00.000Z`).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
+    : date
+
+  const rows = classData.enrollments.map((e, i) => ({
+    'Nº': i + 1,
+    'Data': dataBR,
+    'Nome': e.student.name,
+    'RGM': e.student.rgm || '',
+    'Presente?': (attendance[e.id] ?? true) ? 'Presente' : 'Falta',
+  }))
 
   return XLSX.utils.json_to_sheet(rows)
 }
@@ -141,6 +182,16 @@ export function buildNotesSheet(classData: ClassDetail): XLSX.WorkSheet {
 export function exportSheetXLSX(ws: XLSX.WorkSheet, sheetName: string, filename: string) {
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, sheetName)
+  XLSX.writeFile(wb, filename)
+}
+
+/** Várias abas num arquivo só, na ordem informada. */
+export function exportSheetsXLSX(
+  sheets: { name: string; sheet: XLSX.WorkSheet }[],
+  filename: string
+) {
+  const wb = XLSX.utils.book_new()
+  sheets.forEach(({ name, sheet }) => XLSX.utils.book_append_sheet(wb, sheet, name))
   XLSX.writeFile(wb, filename)
 }
 

@@ -5,14 +5,19 @@ import { getFiltersAction, getClassReportAction } from '@/app/actions/reports'
 import { Printer, Filter, FileSpreadsheet } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { finalGradeOrNull, type GradedActivity } from '@/lib/grades'
+import { frequencyPercent, summarizeAttendance, type AttendanceSummary } from '@/lib/attendance'
 
 /** Os filtros e o relatório vêm das Server Actions — o tipo é o retorno delas. */
 type Filters = Awaited<ReturnType<typeof getFiltersAction>>
 type ReportData = Awaited<ReturnType<typeof getClassReportAction>>
 type ReportEnrollment = NonNullable<ReportData>['enrollments'][number]
 
-/** Uma linha do relatório: a matrícula com a média já calculada. */
-type ReportRow = { enrollment: ReportEnrollment; finalGrade: number | null }
+/** Uma linha do relatório: a matrícula com a média e a frequência calculadas. */
+type ReportRow = {
+  enrollment: ReportEnrollment
+  finalGrade: number | null
+  attendance: AttendanceSummary
+}
 
 /**
  * O relatório usa exatamente o mesmo cálculo do diário de notas. Antes esta
@@ -70,6 +75,10 @@ export default function ReportsPage() {
     return reportData.enrollments.map(enrollment => ({
       enrollment,
       finalGrade: calcFinal(reportData.activities, enrollment, reportData.calculationMethod),
+      // As faltas saem das chamadas salvas. A consulta já trazia
+      // `attendances`, mas a tela mostrava `enrollment.absences`, um contador
+      // que nenhum lugar do sistema escreve — ou seja, zero para todos.
+      attendance: summarizeAttendance(enrollment.attendances),
     }))
   }, [reportData])
 
@@ -85,10 +94,12 @@ export default function ReportsPage() {
   // ---- XLSX Export ----
   const exportXLSX = () => {
     if (!reportData) return
-    const sheetRows = rows.map(({ enrollment, finalGrade }) => ({
+    const sheetRows = rows.map(({ enrollment, finalGrade, attendance }) => ({
       'Aluno': enrollment.student.name,
       'RGM': enrollment.student.rgm || '',
-      'Faltas': enrollment.absences,
+      'Chamadas': attendance.calls,
+      'Faltas': attendance.absences,
+      'Frequência (%)': frequencyPercent(attendance) ?? '—',
       'Média Final': finalGrade != null ? parseFloat(finalGrade.toFixed(2)) : '',
       'Situação': finalGrade != null ? (finalGrade >= 6 ? 'Aprovado' : 'Reprovado') : 'Sem nota',
       'Status': enrollment.status || 'ATIVO',
@@ -180,18 +191,22 @@ export default function ReportsPage() {
                 <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>Aluno</th>
                 <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>RGM</th>
                 <th style={{ padding: '12px', textAlign: 'center', borderBottom: '2px solid #ddd' }}>Faltas</th>
+                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '2px solid #ddd' }}>Frequência</th>
                 <th style={{ padding: '12px', textAlign: 'center', borderBottom: '2px solid #ddd' }}>Média Final</th>
                 <th style={{ padding: '12px', textAlign: 'center', borderBottom: '2px solid #ddd' }}>Situação</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ enrollment: enr, finalGrade }) => {
+              {rows.map(({ enrollment: enr, finalGrade, attendance }) => {
                 const isApproved = finalGrade != null && finalGrade >= 6
                 return (
                   <tr key={enr.id} style={{ borderBottom: '1px solid #eee', background: finalGrade == null ? '#fafafa' : 'transparent' }}>
                     <td style={{ padding: '12px' }}>{enr.student.name}</td>
                     <td style={{ padding: '12px', color: '#666' }}>{enr.student.rgm || '—'}</td>
-                    <td style={{ padding: '12px', textAlign: 'center' }}>{enr.absences}</td>
+                    <td style={{ padding: '12px', textAlign: 'center' }}>{attendance.absences}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', color: '#666' }}>
+                      {frequencyPercent(attendance) !== null ? `${frequencyPercent(attendance)}%` : '—'}
+                    </td>
                     <td style={{ padding: '12px', textAlign: 'center', fontWeight: 'bold', color: finalGrade != null ? (isApproved ? '#16a34a' : '#dc2626') : '#999' }}>
                       {finalGrade != null ? finalGrade.toFixed(1) : '—'}
                     </td>
