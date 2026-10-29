@@ -132,6 +132,84 @@ export async function saveGradesAction(
 }
 
 
+/**
+ * Salva as notas de várias atividades de uma vez.
+ *
+ * Existe porque cada coluna do diário tinha o seu próprio botão "Salvar", e
+ * nada avisava que as outras continuavam por gravar: o professor lançava a
+ * turma inteira em várias provas, salvava uma coluna, trocava de aba e o resto
+ * sumia sem aviso.
+ *
+ * Tudo numa transação só: ou o diário inteiro é gravado, ou nada é. E a
+ * validação roda antes de qualquer escrita — uma nota fora da faixa recusa o
+ * lote todo, em vez de gravar metade.
+ */
+export async function saveAllGradesAction(
+  classId: string,
+  gradesByActivity: Record<string, Record<string, GradeInput>>
+) {
+  await requireAuth()
+
+  const atividades = Object.entries(gradesByActivity)
+  if (atividades.length === 0) {
+    return { success: true, message: 'Nada para salvar.' }
+  }
+
+  // Validar tudo antes de escrever qualquer coisa.
+  const validadas: { activityId: string; parsed: ReturnType<typeof parseGradeInput> }[] = []
+  let invalidas = 0
+
+  for (const [activityId, gradesData] of atividades) {
+    const parsed = parseGradeInput(gradesData)
+    if (!parsed.ok) invalidas += parsed.invalid.length
+    validadas.push({ activityId, parsed })
+  }
+
+  if (invalidas > 0) {
+    return {
+      success: false,
+      message:
+        `${invalidas} nota${invalidas > 1 ? 's' : ''} fora da faixa de ` +
+        `${MIN_GRADE} a ${MAX_GRADE}. Nenhuma nota foi salva.`,
+    }
+  }
+
+  try {
+    const operations = validadas.flatMap(({ activityId, parsed }) => {
+      if (!parsed.ok) return []
+      return [
+        ...parsed.toSave.map(({ enrollmentId, value }) =>
+          prisma.grade.upsert({
+            where: { enrollmentId_activityId: { enrollmentId, activityId } },
+            update: { value },
+            create: { enrollmentId, activityId, value },
+          })
+        ),
+        ...(parsed.toRemove.length > 0
+          ? [
+              prisma.grade.deleteMany({
+                where: { activityId, enrollmentId: { in: parsed.toRemove } },
+              }),
+            ]
+          : []),
+      ]
+    })
+
+    await prisma.$transaction(operations)
+
+    revalidatePath(`/dashboard/classes/${classId}`)
+
+    const n = atividades.length
+    return {
+      success: true,
+      message: `Notas salvas em ${n} atividade${n > 1 ? 's' : ''}.`,
+    }
+  } catch (error) {
+    return { success: false, message: `Erro ao salvar notas: ${errorMessage(error)}` }
+  }
+}
+
+
 export async function updateClassCalculationMethod(classId: string, method: string) {
   await requireAuth()
 

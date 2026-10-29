@@ -29,20 +29,34 @@ function chamadaDaData(classData: ClassDetail, date: string): Record<string, boo
   return chamada
 }
 
-export default function AttendanceTab({ classData }: { classData: ClassDetail }) {
+export type EstadoDaChamada = {
+  date: string
+  attendance: Record<string, boolean>
+  alterada: boolean
+}
+
+/** O estado inicial da aba: a chamada de hoje, como estiver no banco. */
+export function chamadaInicial(classData: ClassDetail): EstadoDaChamada {
   // Data local, não UTC: numa aula noturna o `toISOString()` já aponta para o
   // dia seguinte no fuso do Brasil, e a chamada era gravada na data errada.
   const hoje = todayLocalDate()
+  return { date: hoje, attendance: chamadaDaData(classData, hoje), alterada: false }
+}
 
-  // A data e a chamada andam juntas: trocar a data carrega a chamada salva
-  // daquele dia. Antes a aba começava sempre com todos presentes e nunca lia o
-  // que estava no banco, então a chamada salva parecia ter sido perdida.
-  const [chamada, setChamada] = useState(() => ({
-    date: hoje,
-    attendance: chamadaDaData(classData, hoje),
-    alterada: false,
-  }))
+type AttendanceTabProps = {
+  classData: ClassDetail
+  /**
+   * O estado vive no ClassTabs.
+   *
+   * As abas são montadas por condição, então sair da aba desmontava o
+   * componente e descartava a chamada em andamento sem aviso — o mesmo que
+   * acontecia com as notas do diário.
+   */
+  chamada: EstadoDaChamada
+  setChamada: React.Dispatch<React.SetStateAction<EstadoDaChamada>>
+}
 
+export default function AttendanceTab({ classData, chamada, setChamada }: AttendanceTabProps) {
   const { date, attendance } = chamada
   const [isSaving, setIsSaving] = useState(false)
 

@@ -93,6 +93,33 @@ quando o aluno está abaixo da média, e substitui o bimestre de menor nota.
 Se essa regra precisar mudar, mude num lugar só e ajuste
 `src/lib/__tests__/grades.test.ts` — os testes documentam cada caso.
 
+## Nada é salvo sozinho — e a tela diz o que falta
+
+O diário de notas e a chamada guardam o que está digitado antes de gravar. Duas
+regras existem para esse rascunho não sumir:
+
+**Ele vive no `ClassTabs`, não dentro da aba.** As abas são montadas por
+condição (`activeTab === 'grades' && <GradesTab/>`), então sair da aba
+desmontava o componente e descartava tudo o que não tinha sido salvo, sem
+aviso. Com o rascunho no pai, trocar de aba não perde nada.
+
+**A tela mostra o que falta gravar.** `src/lib/gradeDraft.ts` compara o
+rascunho com o que veio do banco: as células diferentes ganham borda âmbar, e
+uma barra no topo diz quantas notas faltam salvar, com um botão que grava todas
+as atividades de uma vez (`saveAllGradesAction`, numa transação só). Antes
+havia um "Salvar" por coluna e nada mais: quem lançava várias provas e clicava
+num botão só perdia o resto calado, e descobria pela planilha exportada sair
+vazia.
+
+Fechar ou recarregar a página com nota por gravar pede confirmação ao
+navegador.
+
+**O que ainda não tem essa proteção:** o formulário de edição de uma aula no
+Cronograma, o de um trabalho em Trabalhos em Grupo e o de uma anotação em
+Notas. São formulários que o professor abre de propósito, com "Salvar" e
+"Cancelar" à vista, mas trocar de aba com eles abertos ainda descarta o texto
+sem avisar.
+
 ## Como a frequência é contada
 
 A chamada da aba "Frequência Provisória" é a única fonte: cada registro é uma
@@ -186,8 +213,8 @@ confirmar.
 
 ## Testes
 
-**Unitários** (`npm test`) cobrem a lógica pura: cálculo de notas, frequência,
-sincronização da lista de alunos, feriados, assinatura de sessão, rate limit e
+**Unitários** (`npm test`) cobrem a lógica pura: cálculo de notas, o rascunho
+do diário, frequência, sincronização da lista de alunos, feriados, assinatura de sessão, rate limit e
 tratamento de erros. Não precisam
 de banco.
 
