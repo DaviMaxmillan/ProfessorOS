@@ -132,12 +132,17 @@ export function isPassing(final: number): boolean {
 export const PASSING_RATIO = PASSING_GRADE / MAX_GRADE
 
 /**
- * O máximo que o aluno poderia ter alcançado nas atividades já corrigidas.
+ * O máximo que o aluno poderia alcançar nos bimestres já em andamento.
  *
- * Numa turma configurada como "5 + 5 = 10", um bimestre vale no máximo 5. Com
- * só o primeiro bimestre lançado, a maior nota possível é 5 — então comparar
- * com 6 marcava a turma inteira como em risco, inclusive quem tirou 10 nas
- * duas provas.
+ * O teto de um bimestre é o que ele vale na configuração da turma — a soma dos
+ * pesos de **todas** as suas atividades —, e não a fatia que já foi corrigida.
+ * Numa turma de bimestre valendo 10, corrigir só uma prova de peso 2.5 não
+ * muda o fato de que o bimestre exige 6: a prova que falta ainda vale nota.
+ *
+ * Um bimestre entra na conta assim que tem a primeira nota lançada. Antes
+ * disso ele não conta: numa turma "5 + 5 = 10" com só o primeiro bimestre
+ * lançado, o teto é 5 e o mínimo é 3, porque o segundo bimestre ainda nem
+ * começou.
  *
  * A AF fica de fora porque ela só pode subir a nota final, nunca baixá-la.
  */
@@ -148,12 +153,15 @@ export function maxAttainable(
 ): number {
   const lancadas = new Set(grades.map(g => g.activityId))
 
-  // A nota máxima de uma atividade é MAX_GRADE, então o teto de um bimestre é
-  // a soma dos pesos das atividades corrigidas (o cálculo divide por 10).
-  const tetoDoBimestre = (bimester: number) =>
-    activities
-      .filter(a => a.bimester === bimester && lancadas.has(a.id))
-      .reduce((soma, a) => soma + a.weight, 0) * MAX_GRADE / WEIGHT_TOTAL
+  const tetoDoBimestre = (bimester: number) => {
+    const doBimestre = activities.filter(a => a.bimester === bimester)
+    const comecou = doBimestre.some(a => lancadas.has(a.id))
+    if (!comecou) return 0
+
+    // A nota máxima de uma atividade é MAX_GRADE e o cálculo divide por
+    // WEIGHT_TOTAL, então o teto do bimestre é a soma dos seus pesos.
+    return doBimestre.reduce((soma, a) => soma + a.weight, 0) * MAX_GRADE / WEIGHT_TOTAL
+  }
 
   const b1 = tetoDoBimestre(1)
   const b2 = tetoDoBimestre(2)
@@ -161,12 +169,75 @@ export function maxAttainable(
   return method === 'AVERAGE' ? (b1 + b2) / 2 : b1 + b2
 }
 
+/** Quanto vale um bimestre na configuração da turma. */
+export function bimesterMax(activities: GradedActivity[], bimester: number): number {
+  return round2(
+    activities
+      .filter(a => a.bimester === bimester)
+      .reduce((soma, a) => soma + a.weight, 0) * MAX_GRADE / WEIGHT_TOTAL
+  )
+}
+
+/**
+ * A nota mínima dentro de um bimestre: 60% do que ele vale.
+ *
+ * Num bimestre que vale 10 são 6; num que vale 5, são 3. É o número que o
+ * professor lê no diário, e ele não muda conforme as atividades vão sendo
+ * corrigidas — o bimestre vale o que vale.
+ */
+export function bimesterThreshold(activities: GradedActivity[], bimester: number): number {
+  return round2(bimesterMax(activities, bimester) * PASSING_RATIO)
+}
+
+/**
+ * O desempenho do aluno projetado para o bimestre inteiro.
+ *
+ * O mínimo vem do que o bimestre vale na configuração da turma, então o
+ * desempenho precisa ser medido na mesma escala. Comparar a nota acumulada
+ * com o mínimo do bimestre inteiro penalizaria o meio do caminho: num
+ * bimestre que vale 10, quem tirou 10 na única prova corrigida (de peso 2.5)
+ * tem 2.5 acumulados e apareceria em risco.
+ *
+ * A projeção é a fração que o aluno fez nas atividades corrigidas, aplicada
+ * ao valor cheio do bimestre: 10 na única prova corrigida projeta 10.
+ *
+ * Com o bimestre todo corrigido a projeção é a própria nota — não há
+ * estimativa nenhuma no fim das contas.
+ */
+export function projectedFinal(
+  activities: GradedActivity[],
+  grades: GradeEntry[],
+  method: CalculationMethod | string
+): number {
+  const notaPor = new Map(grades.map(g => [g.activityId, g.value]))
+
+  const projecaoDoBimestre = (bimester: number) => {
+    const doBimestre = activities.filter(a => a.bimester === bimester)
+    const corrigidas = doBimestre.filter(a => notaPor.has(a.id))
+    if (corrigidas.length === 0) return 0
+
+    const pesoCorrigido = corrigidas.reduce((soma, a) => soma + a.weight, 0)
+    if (pesoCorrigido === 0) return 0
+
+    const obtido = corrigidas.reduce((soma, a) => soma + (notaPor.get(a.id) ?? 0) * a.weight, 0)
+    const fracao = obtido / (pesoCorrigido * MAX_GRADE)
+
+    const teto = doBimestre.reduce((soma, a) => soma + a.weight, 0) * MAX_GRADE / WEIGHT_TOTAL
+    return fracao * teto
+  }
+
+  const b1 = projecaoDoBimestre(1)
+  const b2 = projecaoDoBimestre(2)
+
+  return round2(method === 'AVERAGE' ? (b1 + b2) / 2 : b1 + b2)
+}
+
 /**
  * A nota mínima para o aluno estar em dia neste ponto do semestre.
  *
- * É 60% do que dava para alcançar com o que já foi corrigido: 6 quando o
- * semestre inteiro está lançado numa turma de 0 a 10, e 3 quando só um
- * bimestre de "5 + 5" foi corrigido.
+ * É 60% do que os bimestres em andamento valem: 6 num bimestre que vale 10, 3
+ * num bimestre que vale 5, e 6 de novo quando os dois bimestres de "5 + 5"
+ * estão lançados.
  */
 export function passingThreshold(
   activities: GradedActivity[],
@@ -215,11 +286,15 @@ export function gradeStanding(
 
   const { final } = calculateGrades(activities, grades, method)
 
+  const minimo = passingThreshold(activities, grades, method)
+
   if (isSemesterComplete(activities, grades)) {
-    return isPassing(final) ? 'APROVADO' : 'REPROVADO'
+    // Semestre fechado: a nota de verdade, já com a AF aplicada.
+    return final >= minimo ? 'APROVADO' : 'REPROVADO'
   }
 
-  return final >= passingThreshold(activities, grades, method) ? 'EM_DIA' : 'EM_RISCO'
+  // Em andamento: o desempenho projetado, na mesma escala do mínimo.
+  return projectedFinal(activities, grades, method) >= minimo ? 'EM_DIA' : 'EM_RISCO'
 }
 
 /** O aluno está em risco pela nota? Serve para a lista de alertas. */
