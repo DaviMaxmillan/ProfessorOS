@@ -58,7 +58,7 @@ export function buildGradesSheet(classData: ClassDetail): XLSX.WorkSheet {
     row['Média Final'] = avgs.final
     // O mínimo acompanha o que já foi corrigido, em vez do 6 fixo: com meio
     // semestre lançado numa turma "5 + 5", o teto é 5 e o mínimo é 3.
-    row['Mínimo até aqui'] = passingThreshold(classData.activities, e.grades, classData.calculationMethod)
+    row['Mínimo da Média'] = passingThreshold(classData.activities, e.grades, classData.calculationMethod)
     row['Situação'] = standingLabel(gradeStanding(classData.activities, e.grades, classData.calculationMethod))
     return row
   })

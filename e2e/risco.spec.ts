@@ -70,13 +70,57 @@ test.describe('Aviso de aluno em risco', () => {
     await page.goto(`/dashboard/classes/${turma.classId}`)
     await page.getByRole('button', { name: 'Diário de Notas', exact: true }).click()
 
-    // Um bimestre de 5 corrigido: 60% de 5 é 3.
-    await expect(page.getByText(/Mínimo até aqui/i)).toContainText('3.0')
+    // O bimestre vale 5 nesta turma, então o mínimo dele é 3.
+    await expect(page.getByText(/Mínimo por bimestre/i)).toContainText('3.0')
 
     await ctx.close()
   })
 
-  test('o mínimo volta a 6 quando o semestre fecha', async ({ browser }) => {
+  test('o mínimo do bimestre não encolhe com o bimestre pela metade', async ({ browser }) => {
+    // A correção do professor: o mínimo vem do que o bimestre vale, não da
+    // fatia já corrigida. Com uma prova só lançada, continua 3 — não 1.5.
+    const turma = await turmaCincoMaisCinco(['ANA PRIMEIRA'])
+    const extra = await db.activity.create({
+      data: { classId: turma.classId, bimester: 1, name: 'Trabalho', weight: 2.5 },
+    })
+    await db.activity.update({ where: { id: turma.b1 }, data: { weight: 2.5 } })
+    await db.grade.create({
+      data: { enrollmentId: turma.enrollmentIdPorNome['ANA PRIMEIRA'], activityId: extra.id, value: 10 },
+    })
+
+    const ctx = await novoContextoAutenticado(browser)
+    const page = await ctx.newPage()
+    await page.goto(`/dashboard/classes/${turma.classId}`)
+    await page.getByRole('button', { name: 'Diário de Notas', exact: true }).click()
+
+    await expect(page.getByText(/Mínimo por bimestre/i)).toContainText('3.0')
+
+    // E quem tirou 10 na única prova corrigida está em dia, não em risco.
+    await abrirRelatorio(page, turma.classId)
+    await expect(page.getByRole('row').filter({ hasText: 'ANA PRIMEIRA' })).toContainText('Em dia')
+
+    await ctx.close()
+  })
+
+  test('num bimestre que vale 10 o mínimo é 6', async ({ browser }) => {
+    // "e isso deve ser em todas as turmas": o número sai da configuração da
+    // turma, não de um valor fixo.
+    const turma = await criarTurmaDeTeste(['ANA PRIMEIRA'], { pesoDaAtividade: 10 })
+    await db.activity.create({
+      data: { classId: turma.classId, bimester: 2, name: 'Prova 2', weight: 10 },
+    })
+
+    const ctx = await novoContextoAutenticado(browser)
+    const page = await ctx.newPage()
+    await page.goto(`/dashboard/classes/${turma.classId}`)
+    await page.getByRole('button', { name: 'Diário de Notas', exact: true }).click()
+
+    await expect(page.getByText(/Mínimo por bimestre/i)).toContainText('6.0')
+
+    await ctx.close()
+  })
+
+  test('o mínimo da média volta a 6 quando o semestre fecha', async ({ browser }) => {
     const turma = await turmaCincoMaisCinco(['ANA PRIMEIRA'])
     await db.grade.createMany({
       data: [
@@ -87,10 +131,11 @@ test.describe('Aviso de aluno em risco', () => {
 
     const ctx = await novoContextoAutenticado(browser)
     const page = await ctx.newPage()
-    await page.goto(`/dashboard/classes/${turma.classId}`)
-    await page.getByRole('button', { name: 'Diário de Notas', exact: true }).click()
+    await abrirRelatorio(page, turma.classId)
 
-    await expect(page.getByText(/Mínimo até aqui/i)).toContainText('6.0')
+    // 8 nas duas provas dá 4 + 4 = 8, acima dos 6 da média fechada.
+    await expect(page.getByRole('row').filter({ hasText: 'ANA PRIMEIRA' })).toContainText('Aprovado')
+    await expect(page.getByText(/Alunos Aprovados \(≥ 6\)/i)).toBeVisible()
 
     await ctx.close()
   })

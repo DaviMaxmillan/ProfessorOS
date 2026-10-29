@@ -101,6 +101,24 @@ bimestre vale no máximo 5: com só o primeiro corrigido, nem o aluno que tirou
 10 nas duas provas chegava a 6, e a lista de alunos em risco acusava a turma
 inteira — a taxa de aprovação ficava em 0%.
 
+O mínimo sai da configuração de cada turma, em duas escalas:
+
+- **Por bimestre** (`bimesterThreshold`): 60% do que o bimestre vale, somando
+  os pesos de **todas** as suas atividades. Um bimestre que vale 10 exige 6;
+  um que vale 5 exige 3. Esse número não encolhe conforme as atividades vão
+  sendo corrigidas — a prova que falta ainda vale nota. É o que o diário
+  mostra.
+- **Da média** (`passingThreshold`): 60% do que os bimestres já em andamento
+  somam, na escala da média final. É a coluna "Mínimo da Média" da planilha e
+  do relatório.
+
+Como o mínimo vem do bimestre cheio, o desempenho precisa ser medido na mesma
+escala: `projectedFinal` aplica a fração que o aluno fez nas atividades
+corrigidas ao valor cheio do bimestre. Quem tirou 10 na única prova corrigida
+de um bimestre que vale 10 projeta 10, e não 2.5 — sem isso, o meio do
+bimestre acusaria em risco quem está indo bem. Com o bimestre todo corrigido a
+projeção é a própria nota, sem estimativa nenhuma.
+
 `gradeStanding` responde em que pé o aluno está, considerando o ponto do
 semestre:
 

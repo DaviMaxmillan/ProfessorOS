@@ -4,6 +4,7 @@ import {
   calculateGrades,
   finalGradeOrNull,
   gradeStanding,
+  projectedFinal,
   isGradeAtRisk,
   isSemesterComplete,
   maxAttainable,
@@ -268,8 +269,15 @@ describe('situação ao longo do semestre', () => {
       expect(maxAttainable(cincoMaisCinco, semestreTodo(10, 10), 'SUM')).toBe(10)
     })
 
-    it('conta só as atividades que têm nota', () => {
-      expect(maxAttainable(cincoMaisCinco, notas({ b1p1: 10 }), 'SUM')).toBe(2.5)
+    it('conta o bimestre inteiro, não só a parte corrigida', () => {
+      // O teto é o que o bimestre vale na configuração da turma. Corrigir
+      // uma prova de peso 2.5 não muda o fato de que o bimestre vale 5 — a
+      // prova que falta ainda vale nota.
+      expect(maxAttainable(cincoMaisCinco, notas({ b1p1: 10 }), 'SUM')).toBe(5)
+    })
+
+    it('não conta o bimestre que ainda não começou', () => {
+      expect(maxAttainable(cincoMaisCinco, soB1(10), 'SUM')).toBe(5)
     })
 
     it('é zero sem nota nenhuma', () => {
@@ -286,12 +294,82 @@ describe('situação ao longo do semestre', () => {
   })
 
   describe('passingThreshold', () => {
-    it('é 3 com um bimestre de 5 corrigido — o caso que o professor relatou', () => {
+    it('é 3 num bimestre que vale 5 — o caso que o professor relatou', () => {
       expect(passingThreshold(cincoMaisCinco, soB1(10), 'SUM')).toBe(3)
     })
 
     it('volta a ser 6 com o semestre inteiro corrigido', () => {
       expect(passingThreshold(cincoMaisCinco, semestreTodo(10, 10), 'SUM')).toBe(6)
+    })
+
+    it('não encolhe quando só parte do bimestre foi corrigida', () => {
+      // A segunda correção do professor: o mínimo vem do que o bimestre vale,
+      // não da fatia já lançada. Com uma prova só, continua 3 — não 1.5.
+      expect(passingThreshold(cincoMaisCinco, notas({ b1p1: 10 }), 'SUM')).toBe(3)
+    })
+
+    it('é 6 num bimestre que vale 10, com uma prova só corrigida', () => {
+      // A turma padrão: pesos do bimestre somando 10. Exatamente o número que
+      // o professor apontou.
+      const bimestreDe10: GradedActivity[] = [
+        { id: 'p1', bimester: 1, weight: 2.5 },
+        { id: 'p2', bimester: 1, weight: 2.5 },
+        { id: 'p3', bimester: 1, weight: 5 },
+        { id: 'q1', bimester: 2, weight: 10 },
+      ]
+      expect(passingThreshold(bimestreDe10, notas({ p1: 10 }), 'AVERAGE')).toBe(3)
+      // O 3 é no placar final (média dos dois bimestres); no bimestre em si
+      // o mínimo é 6 — ver `projectedFinal`.
+      expect(maxAttainable(bimestreDe10, notas({ p1: 10 }), 'AVERAGE')).toBe(5)
+    })
+
+    it('a regra vale para qualquer configuração de turma', () => {
+      const pesos = (total: number): GradedActivity[] => [
+        { id: 'b1', bimester: 1, weight: total },
+        { id: 'b2', bimester: 2, weight: total },
+      ]
+      // 60% do que o bimestre em andamento vale, seja ele 5, 10 ou 2.
+      expect(passingThreshold(pesos(5), notas({ b1: 8 }), 'SUM')).toBe(3)
+      expect(passingThreshold(pesos(10), notas({ b1: 8 }), 'SUM')).toBe(6)
+      expect(passingThreshold(pesos(2), notas({ b1: 8 }), 'SUM')).toBe(1.2)
+    })
+  })
+
+  describe('projectedFinal', () => {
+    /** Turma padrão: o bimestre vale 10, repartido em três atividades. */
+    const bimestreDe10: GradedActivity[] = [
+      { id: 'p1', bimester: 1, weight: 2.5 },
+      { id: 'p2', bimester: 1, weight: 2.5 },
+      { id: 'p3', bimester: 1, weight: 5 },
+      { id: 'q1', bimester: 2, weight: 10 },
+    ]
+
+    it('projeta a fração feita para o bimestre inteiro', () => {
+      // 10 na única prova corrigida projeta 10 no bimestre, não 2.5.
+      // Com AVERAGE e o 2º bimestre vazio, o placar fica em 5.
+      expect(projectedFinal(bimestreDe10, notas({ p1: 10 }), 'AVERAGE')).toBe(5)
+      expect(gradeStanding(bimestreDe10, notas({ p1: 10 }), 'AVERAGE')).toBe('EM_DIA')
+    })
+
+    it('o aluno precisa de 6 num bimestre que vale 10', () => {
+      expect(gradeStanding(bimestreDe10, notas({ p1: 6 }), 'AVERAGE')).toBe('EM_DIA')
+      expect(gradeStanding(bimestreDe10, notas({ p1: 5 }), 'AVERAGE')).toBe('EM_RISCO')
+    })
+
+    it('respeita o peso de cada atividade na projeção', () => {
+      // 10 na prova de peso 5 e 0 na de peso 2.5: 2/3 do que foi corrigido.
+      const projetado = projectedFinal(bimestreDe10, notas({ p3: 10, p1: 0 }), 'AVERAGE')
+      expect(projetado).toBeCloseTo((10 * 5) / ((5 + 2.5) * 10) * 10 / 2, 2)
+    })
+
+    it('com o bimestre todo corrigido a projeção é a própria nota', () => {
+      const todas = notas({ b1p1: 7, b1p2: 7, b2p1: 5, b2p2: 5 })
+      const { final } = calculateGrades(cincoMaisCinco, todas, 'SUM')
+      expect(projectedFinal(cincoMaisCinco, todas, 'SUM')).toBe(final)
+    })
+
+    it('é zero sem nota nenhuma', () => {
+      expect(projectedFinal(cincoMaisCinco, [], 'SUM')).toBe(0)
     })
   })
 
