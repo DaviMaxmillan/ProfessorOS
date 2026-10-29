@@ -1,14 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Users, FileSpreadsheet, CalendarCheck } from 'lucide-react'
 import GradesTab from './GradesTab'
-import AttendanceTab from './AttendanceTab'
+import AttendanceTab, { chamadaInicial, type EstadoDaChamada } from './AttendanceTab'
 import ScheduleTab from './ScheduleTab'
 import GroupWorkTab from './GroupWorkTab'
 import NotesTab from './NotesTab'
 import { updateEnrollmentStatusAction } from '@/app/actions/diary'
 import { buildStudentsSheet, exportSheetXLSX } from '@/lib/exportClass'
+import { changedCells, draftFromEnrollments, type GradeDraft } from '@/lib/gradeDraft'
 import type { ClassDetail, ClassSummary } from '@/lib/types'
 
 type ClassTabsProps = {
@@ -28,6 +29,42 @@ function getStatusInfo(status: string | null) {
 
 export default function ClassTabs({ classData, allClasses }: ClassTabsProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'grades' | 'attendance' | 'schedule' | 'groupwork' | 'notes'>('overview')
+
+  /**
+   * O rascunho do diário mora aqui, e não dentro do GradesTab.
+   *
+   * As abas são montadas por condição (`activeTab === 'grades' && ...`), então
+   * sair do diário desmontava o componente e levava junto tudo o que estava
+   * digitado e não salvo — sem aviso nenhum. Mantendo o rascunho no pai, ele
+   * sobrevive à troca de aba.
+   */
+  const [gradeDraft, setGradeDraft] = useState<GradeDraft>(() =>
+    draftFromEnrollments(classData.enrollments)
+  )
+
+  // Mesmo motivo do rascunho de notas: a chamada em andamento não pode morrer
+  // ao trocar de aba.
+  const [chamada, setChamada] = useState<EstadoDaChamada>(() => chamadaInicial(classData))
+
+  const notasPendentes = changedCells(
+    classData.enrollments,
+    classData.activities.map(a => a.id),
+    gradeDraft
+  )
+
+  /**
+   * Fechar ou recarregar a página com nota por gravar pede confirmação.
+   *
+   * É o aviso nativo do navegador; não dá para customizar o texto, mas é o
+   * único que o navegador respeita nesse momento.
+   */
+  useEffect(() => {
+    if (notasPendentes.length === 0 && !chamada.alterada) return
+
+    const avisar = (e: BeforeUnloadEvent) => e.preventDefault()
+    window.addEventListener('beforeunload', avisar)
+    return () => window.removeEventListener('beforeunload', avisar)
+  }, [notasPendentes.length, chamada.alterada])
   // local status state so UI updates immediately without a full reload
   const [statusMap, setStatusMap] = useState<Record<string, string>>(() => {
     const m: Record<string, string> = {}
@@ -187,8 +224,17 @@ export default function ClassTabs({ classData, allClasses }: ClassTabsProps) {
       )}
 
 
-      {activeTab === 'grades' && <GradesTab classData={classData} />}
-      {activeTab === 'attendance' && <AttendanceTab classData={classData} />}
+      {activeTab === 'grades' && (
+        <GradesTab
+          classData={classData}
+          draft={gradeDraft}
+          setDraft={setGradeDraft}
+          pendentes={notasPendentes}
+        />
+      )}
+      {activeTab === 'attendance' && (
+        <AttendanceTab classData={classData} chamada={chamada} setChamada={setChamada} />
+      )}
       {activeTab === 'schedule' && <ScheduleTab classData={classData} allClasses={allClasses} />}
       {activeTab === 'groupwork' && <GroupWorkTab classData={classData} />}
       {activeTab === 'notes' && <NotesTab classData={classData} />}

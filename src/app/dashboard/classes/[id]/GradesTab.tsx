@@ -2,12 +2,29 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Plus, Calculator, Settings, X, Edit2, StickyNote, FileSpreadsheet } from 'lucide-react'
-import { createActivityAction, saveGradesAction, updateClassCalculationMethod, deleteActivityAction, updateStudentNameAction, saveEnrollmentNotesAction } from '@/app/actions/diary'
+import { createActivityAction, saveGradesAction, saveAllGradesAction, updateClassCalculationMethod, deleteActivityAction, updateStudentNameAction, saveEnrollmentNotesAction } from '@/app/actions/diary'
 import { buildGradesSheet, exportSheetXLSX } from '@/lib/exportClass'
+import {
+  cellKey,
+  changedActivityIds,
+  changedCellKeys,
+  draftToPayload,
+  type ChangedCell,
+  type GradeDraft,
+} from '@/lib/gradeDraft'
 import type { ClassDetail } from '@/lib/types'
 import { calculateGrades, type GradeInput } from '@/lib/grades'
 
-export default function GradesTab({ classData }: { classData: ClassDetail }) {
+type GradesTabProps = {
+  classData: ClassDetail
+  /** O rascunho vive no ClassTabs, para sobreviver à troca de aba. */
+  draft: GradeDraft
+  setDraft: React.Dispatch<React.SetStateAction<GradeDraft>>
+  /** As células que estão diferentes do banco. */
+  pendentes: ChangedCell[]
+}
+
+export default function GradesTab({ classData, draft, setDraft, pendentes }: GradesTabProps) {
   const areaDeRolagemRef = useRef<HTMLDivElement>(null)
   const barraDeTopoRef = useRef<HTMLDivElement>(null)
   const medidaDaBarraRef = useRef<HTMLDivElement>(null)
@@ -19,16 +36,16 @@ export default function GradesTab({ classData }: { classData: ClassDetail }) {
   const [isSavingNotes, setIsSavingNotes] = useState(false)
   
   // gradesState shape: { [enrollmentId]: { [activityId]: number | null } }
-  const [gradesState, setGradesState] = useState<Record<string, Record<string, number | null>>>(() => {
-    const initial: Record<string, Record<string, number | null>> = {}
-    classData.enrollments.forEach((e) => {
-      initial[e.id] = {}
-      e.grades.forEach((g) => {
-        initial[e.id][g.activityId] = g.value
-      })
-    })
-    return initial
-  })
+  const gradesState = draft
+  const setGradesState = setDraft
+
+  const celulasPendentes = changedCellKeys(pendentes)
+
+  /** Borda âmbar na célula que ainda não foi gravada. */
+  const estiloDaCelula = (enrollmentId: string, activityId: string, base: React.CSSProperties) =>
+    celulasPendentes.has(cellKey(enrollmentId, activityId))
+      ? { ...base, border: '1px solid #f59e0b', background: 'rgba(245, 158, 11, 0.12)' }
+      : base
 
   const b1Activities = classData.activities.filter((a) => a.bimester === 1)
   const b2Activities = classData.activities.filter((a) => a.bimester === 2)
@@ -43,6 +60,24 @@ export default function GradesTab({ classData }: { classData: ClassDetail }) {
         [activityId]: isNaN(num) ? null : num
       }
     }))
+  }
+
+  /**
+   * Salva todas as atividades que têm nota alterada, numa transação só.
+   *
+   * O botão por coluna continua existindo, mas ele era a única forma de
+   * gravar: quem lançava várias provas e clicava num "Salvar" só perdia o
+   * resto sem aviso.
+   */
+  const handleSaveAll = async () => {
+    if (pendentes.length === 0) return
+    setIsSaving(true)
+
+    const payload = draftToPayload(classData.enrollments, pendentes, gradesState)
+    const result = await saveAllGradesAction(classData.id, payload)
+
+    setIsSaving(false)
+    alert(result.message)
   }
 
   const handleMethodChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -257,6 +292,38 @@ export default function GradesTab({ classData }: { classData: ClassDetail }) {
         )}
       </div>
 
+      {/* O aviso de nota por gravar.
+          Sem ele, o único sinal de que algo faltava salvar era a planilha
+          exportada sair vazia. */}
+      {pendentes.length > 0 && (
+        <div
+          data-testid="notas-pendentes"
+          style={{
+            position: 'sticky', top: 0, zIndex: 6,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: '16px', flexWrap: 'wrap',
+            padding: '12px 16px', marginBottom: '12px', borderRadius: '8px',
+            background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.4)',
+          }}
+        >
+          <span style={{ color: '#f59e0b', fontWeight: 500 }}>
+            {pendentes.length === 1
+              ? '1 nota digitada ainda não foi salva'
+              : `${pendentes.length} notas digitadas ainda não foram salvas`}
+            {changedActivityIds(pendentes).length > 1 &&
+              ` em ${changedActivityIds(pendentes).length} atividades`}
+          </span>
+          <button
+            onClick={handleSaveAll}
+            disabled={isSaving}
+            className="btn-primary"
+            style={{ padding: '8px 16px', cursor: isSaving ? 'wait' : 'pointer' }}
+          >
+            {isSaving ? 'Salvando...' : 'Salvar todas as notas'}
+          </button>
+        </div>
+      )}
+
       <div className="grades-scroll-topo" ref={barraDeTopoRef}>
         <div ref={medidaDaBarraRef} />
       </div>
@@ -389,7 +456,7 @@ export default function GradesTab({ classData }: { classData: ClassDetail }) {
                         type="number" min="0" max="10" step="0.1"
                         value={gradesState[enrollment.id]?.[act.id] ?? ''}
                         onChange={(e) => handleGradeChange(enrollment.id, act.id, e.target.value)}
-                        style={{ width: '60px', textAlign: 'center', padding: '6px', borderRadius: '4px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--surface-border)', color: '#fff' }}
+                        style={estiloDaCelula(enrollment.id, act.id, { width: '60px', textAlign: 'center', padding: '6px', borderRadius: '4px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--surface-border)', color: '#fff' })}
                       />
                     </td>
                   ))}
@@ -402,7 +469,7 @@ export default function GradesTab({ classData }: { classData: ClassDetail }) {
                         type="number" min="0" max="10" step="0.1"
                         value={gradesState[enrollment.id]?.[act.id] ?? ''}
                         onChange={(e) => handleGradeChange(enrollment.id, act.id, e.target.value)}
-                        style={{ width: '60px', textAlign: 'center', padding: '6px', borderRadius: '4px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--surface-border)', color: '#fff' }}
+                        style={estiloDaCelula(enrollment.id, act.id, { width: '60px', textAlign: 'center', padding: '6px', borderRadius: '4px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--surface-border)', color: '#fff' })}
                       />
                     </td>
                   ))}
@@ -421,7 +488,7 @@ export default function GradesTab({ classData }: { classData: ClassDetail }) {
                           value={gradesState[enrollment.id]?.[act.id] ?? ''}
                           onChange={(e) => handleGradeChange(enrollment.id, act.id, e.target.value)}
                           placeholder="-"
-                          style={{ width: '60px', textAlign: 'center', padding: '6px', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', color: '#f59e0b' }}
+                          style={estiloDaCelula(enrollment.id, act.id, { width: '60px', textAlign: 'center', padding: '6px', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', color: '#f59e0b' })}
                         />
                       </td>
                     ))
