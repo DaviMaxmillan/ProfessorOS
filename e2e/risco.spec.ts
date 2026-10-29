@@ -102,20 +102,60 @@ test.describe('Aviso de aluno em risco', () => {
     await ctx.close()
   })
 
-  test('num bimestre que vale 10 o mínimo é 6', async ({ browser }) => {
-    // "e isso deve ser em todas as turmas": o número sai da configuração da
-    // turma, não de um valor fixo.
-    const turma = await criarTurmaDeTeste(['ANA PRIMEIRA'], { pesoDaAtividade: 10 })
-    await db.activity.create({
+  /**
+   * Turma de média: cada bimestre vale 10, e a média dos dois fecha em 10.
+   *
+   * É a outra configuração que o professor usa, ao lado da "5 + 5 = 10". Aqui
+   * o mínimo do bimestre é 6.
+   */
+  async function turmaDezMaisDez(nomes: string[]) {
+    const turma = await criarTurmaDeTeste(nomes, { pesoDaAtividade: 10 })
+    const b2 = await db.activity.create({
       data: { classId: turma.classId, bimester: 2, name: 'Prova 2', weight: 10 },
+    })
+    await db.class.update({
+      where: { id: turma.classId },
+      data: { calculationMethod: 'AVERAGE' },
+    })
+    return { ...turma, b1: turma.activityId, b2: b2.id }
+  }
+
+  test('a soma "5 + 5" exige 3 e a média "(10 + 10) / 2" exige 6', async ({ browser }) => {
+    // "e isso deve ser em todas as turmas": o número sai da configuração de
+    // cada turma. As duas telas são comparadas na mesma execução para que uma
+    // regressão que iguale os dois valores apareça.
+    const soma = await turmaCincoMaisCinco(['ANA PRIMEIRA'])
+    const media = await turmaDezMaisDez(['ANA PRIMEIRA'])
+
+    const ctx = await novoContextoAutenticado(browser)
+    const page = await ctx.newPage()
+
+    await page.goto(`/dashboard/classes/${soma.classId}`)
+    await page.getByRole('button', { name: 'Diário de Notas', exact: true }).click()
+    await expect(page.getByText(/Mínimo por bimestre/i)).toContainText('3.0')
+
+    await page.goto(`/dashboard/classes/${media.classId}`)
+    await page.getByRole('button', { name: 'Diário de Notas', exact: true }).click()
+    await expect(page.getByText(/Mínimo por bimestre/i)).toContainText('6.0')
+
+    await ctx.close()
+  })
+
+  test('na turma de média, quem tira 6 no bimestre está em dia', async ({ browser }) => {
+    const turma = await turmaDezMaisDez(['ANA PRIMEIRA', 'BRUNO SEGUNDO'])
+    await db.grade.createMany({
+      data: [
+        { enrollmentId: turma.enrollmentIdPorNome['ANA PRIMEIRA'], activityId: turma.b1, value: 6 },
+        { enrollmentId: turma.enrollmentIdPorNome['BRUNO SEGUNDO'], activityId: turma.b1, value: 5 },
+      ],
     })
 
     const ctx = await novoContextoAutenticado(browser)
     const page = await ctx.newPage()
-    await page.goto(`/dashboard/classes/${turma.classId}`)
-    await page.getByRole('button', { name: 'Diário de Notas', exact: true }).click()
+    await abrirRelatorio(page, turma.classId)
 
-    await expect(page.getByText(/Mínimo por bimestre/i)).toContainText('6.0')
+    await expect(page.getByRole('row').filter({ hasText: 'ANA PRIMEIRA' })).toContainText('Em dia')
+    await expect(page.getByRole('row').filter({ hasText: 'BRUNO SEGUNDO' })).toContainText('Em risco')
 
     await ctx.close()
   })
