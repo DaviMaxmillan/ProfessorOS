@@ -9,6 +9,7 @@ import * as XLSX from 'xlsx'
 import type { ClassDetail } from './types'
 import { calculateGrades, isPassing } from './grades'
 import { attendanceDateKey, frequencyPercent, isBelowMinFrequency, summarizeAttendance } from './attendance'
+import { isActiveEnrollment } from './roster'
 
 /** Uma linha de planilha: cabeçalho da coluna -> valor da célula. */
 type SheetRow = Record<string, string | number>
@@ -81,6 +82,7 @@ export function buildAttendanceSheet(classData: ClassDetail): XLSX.WorkSheet {
       'Nº': i + 1,
       'Nome': e.student.name,
       'RGM': e.student.rgm || '',
+      'Status': e.status || 'ATIVO',
       'Aulas Previstas': aulasPrevistas,
       'Chamadas Feitas': resumo.calls,
       'Presenças': resumo.presences,
@@ -114,13 +116,16 @@ export function buildRollCallSheet(
     ? new Date(`${attendanceDateKey(date)}T00:00:00.000Z`).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
     : date
 
-  const rows = classData.enrollments.map((e, i) => ({
-    'Nº': i + 1,
-    'Data': dataBR,
-    'Nome': e.student.name,
-    'RGM': e.student.rgm || '',
-    'Presente?': (attendance[e.id] ?? true) ? 'Presente' : 'Falta',
-  }))
+  // Os mesmos alunos que a tela chama: trancado e desistente ficam de fora.
+  const rows = classData.enrollments
+    .filter((e) => isActiveEnrollment(e.status))
+    .map((e, i) => ({
+      'Nº': i + 1,
+      'Data': dataBR,
+      'Nome': e.student.name,
+      'RGM': e.student.rgm || '',
+      'Presente?': (attendance[e.id] ?? true) ? 'Presente' : 'Falta',
+    }))
 
   return XLSX.utils.json_to_sheet(rows)
 }

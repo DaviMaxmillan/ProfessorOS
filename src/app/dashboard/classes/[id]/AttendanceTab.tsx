@@ -5,13 +5,25 @@ import { Check, X, Save, Printer, Edit2, FileSpreadsheet } from 'lucide-react'
 import { saveProvisionalAttendanceAction, updateStudentNameAction } from '@/app/actions/diary'
 import { buildAttendanceSheet, buildRollCallSheet, exportSheetsXLSX } from '@/lib/exportClass'
 import { attendanceForDate, hasAttendanceForDate, todayLocalDate } from '@/lib/attendance'
+import { isActiveEnrollment } from '@/lib/roster'
 import type { ClassDetail } from '@/lib/types'
+
+/**
+ * Quem é chamado: só as matrículas ativas.
+ *
+ * Trancado e desistente não entram na chamada. O que já foi registrado deles
+ * continua no banco e segue contando na frequência — o que muda é daqui para
+ * a frente.
+ */
+function alunosDaChamada(classData: ClassDetail) {
+  return classData.enrollments.filter(e => isActiveEnrollment(e.status))
+}
 
 /** A chamada de uma data: matrícula -> presente. Quem não foi chamado fica presente. */
 function chamadaDaData(classData: ClassDetail, date: string): Record<string, boolean> {
   const salva = attendanceForDate(classData.enrollments, date)
   const chamada: Record<string, boolean> = {}
-  classData.enrollments.forEach((e) => {
+  alunosDaChamada(classData).forEach((e) => {
     chamada[e.id] = salva[e.id] ?? true
   })
   return chamada
@@ -34,9 +46,11 @@ export default function AttendanceTab({ classData }: { classData: ClassDetail })
   const { date, attendance } = chamada
   const [isSaving, setIsSaving] = useState(false)
 
+  const chamados = useMemo(() => alunosDaChamada(classData), [classData])
+
   const jaSalva = useMemo(
-    () => hasAttendanceForDate(classData.enrollments, date),
-    [classData.enrollments, date]
+    () => hasAttendanceForDate(chamados, date),
+    [chamados, date]
   )
 
   const trocarData = (novaData: string) => {
@@ -57,7 +71,7 @@ export default function AttendanceTab({ classData }: { classData: ClassDetail })
 
   const markAll = (present: boolean) => {
     const updated: Record<string, boolean> = {}
-    classData.enrollments.forEach((e) => {
+    chamados.forEach((e) => {
       updated[e.id] = present
     })
     setChamada(atual => ({ ...atual, attendance: updated, alterada: true }))
@@ -150,7 +164,7 @@ export default function AttendanceTab({ classData }: { classData: ClassDetail })
           </tr>
         </thead>
         <tbody>
-          {classData.enrollments.map((enrollment, index: number) => {
+          {chamados.map((enrollment, index: number) => {
             const isPresent = attendance[enrollment.id] ?? true
             return (
               <tr key={enrollment.id} style={{ borderBottom: '1px solid var(--surface-border)' }} className="print-row">

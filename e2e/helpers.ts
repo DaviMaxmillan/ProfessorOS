@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import type { Browser, BrowserContext, Page } from '@playwright/test'
+import * as XLSX from 'xlsx'
 import {
   SESSION_COOKIE,
   createSessionToken,
@@ -138,6 +139,15 @@ export type TurmaDeTeste = {
   /** enrollmentId por nome do aluno. */
   enrollmentIdPorNome: Record<string, string>
   /**
+   * RGM por nome do aluno.
+   *
+   * Os testes rodam em sequência no mesmo banco e reaproveitam os mesmos
+   * nomes, então existem dezenas de alunos homônimos acumulados. O RGM é
+   * único por execução — é por ele que a planilha de teste identifica o aluno,
+   * como a planilha da instituição faz.
+   */
+  rgmPorNome: Record<string, string>
+  /**
    * enrollmentIds na mesma ordem em que aparecem na tabela.
    *
    * A página ordena as matrículas por nome do aluno, que não é
@@ -176,15 +186,18 @@ export async function criarTurmaDeTeste(
   })
 
   const enrollmentIdPorNome: Record<string, string> = {}
+  const rgmPorNome: Record<string, string> = {}
   let criados = 0
   for (const nome of nomesDosAlunos) {
+    const rgm = `${sufixo}-${criados}`
     const student = await db.student.create({
-      data: { name: nome, rgm: `${sufixo}-${criados}` },
+      data: { name: nome, rgm },
     })
     const enrollment = await db.enrollment.create({
       data: { studentId: student.id, classId: turma.id },
     })
     enrollmentIdPorNome[nome] = enrollment.id
+    rgmPorNome[nome] = rgm
     criados++
   }
 
@@ -205,6 +218,7 @@ export async function criarTurmaDeTeste(
     classId: turma.id,
     activityId: activity.id,
     enrollmentIdPorNome,
+    rgmPorNome,
     enrollmentIdsEmOrdemDeExibicao,
   }
 }
@@ -227,4 +241,33 @@ export async function chamadaDaData(
     },
   })
   return Object.fromEntries(registros.map(r => [r.enrollmentId, r.present]))
+}
+
+/** Uma planilha de alunos no formato que a sincronização espera. */
+export function planilhaDeAlunos(
+  linhas: { nome: string; rgm?: string }[]
+): Buffer {
+  const dados: unknown[][] = [
+    ['Relatório de Alunos Matriculados'],
+    [],
+    ['Nome Aluno', 'RGM'],
+    ...linhas.map(l => [l.nome, l.rgm ?? '']),
+  ]
+  const ws = XLSX.utils.aoa_to_sheet(dados)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Alunos')
+  return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer
+}
+
+/** As matrículas de uma turma, por nome do aluno. */
+export async function matriculasDaTurma(
+  classId: string
+): Promise<Record<string, { status: string | null; enrollmentId: string }>> {
+  const enrollments = await db.enrollment.findMany({
+    where: { classId },
+    include: { student: true },
+  })
+  return Object.fromEntries(
+    enrollments.map(e => [e.student.name, { status: e.status, enrollmentId: e.id }])
+  )
 }
