@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   PASSING_GRADE,
+  bimesterThreshold,
   calculateGrades,
   finalGradeOrNull,
   gradeStanding,
@@ -321,6 +322,25 @@ describe('situação ao longo do semestre', () => {
       // O 3 é no placar final (média dos dois bimestres); no bimestre em si
       // o mínimo é 6 — ver `projectedFinal`.
       expect(maxAttainable(bimestreDe10, notas({ p1: 10 }), 'AVERAGE')).toBe(5)
+    })
+
+    it('os dois cálculos do professor dão mínimos diferentes', () => {
+      // Soma "5 + 5 = 10": o bimestre vale 5, mínimo 3.
+      // Média "(10 + 10) / 2": o bimestre vale 10, mínimo 6.
+      const soma: GradedActivity[] = [
+        { id: 'a', bimester: 1, weight: 2.5 }, { id: 'b', bimester: 1, weight: 2.5 },
+        { id: 'c', bimester: 2, weight: 2.5 }, { id: 'd', bimester: 2, weight: 2.5 },
+      ]
+      const media: GradedActivity[] = [
+        { id: 'a', bimester: 1, weight: 5 }, { id: 'b', bimester: 1, weight: 5 },
+        { id: 'c', bimester: 2, weight: 5 }, { id: 'd', bimester: 2, weight: 5 },
+      ]
+
+      expect(bimesterThreshold(soma, 1)).toBe(3)
+      expect(bimesterThreshold(media, 1)).toBe(6)
+      // Os dois fecham o semestre em 10, cada um pelo seu método.
+      expect(maxAttainable(soma, notas({ a: 8, b: 8, c: 8, d: 8 }), 'SUM')).toBe(10)
+      expect(maxAttainable(media, notas({ a: 8, b: 8, c: 8, d: 8 }), 'AVERAGE')).toBe(10)
     })
 
     it('a regra vale para qualquer configuração de turma', () => {
