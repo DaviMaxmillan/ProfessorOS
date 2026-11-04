@@ -59,7 +59,9 @@ test.describe('Aviso de aluno em risco', () => {
     await ctx.close()
   })
 
-  test('o diário mostra o mínimo exigido no ponto atual', async ({ browser }) => {
+  test('o diário não exibe aviso de mínimo', async ({ browser }) => {
+    // O professor pediu para tirar. A regra continua valendo — o que saiu foi
+    // só o texto ao lado do seletor de cálculo.
     const turma = await turmaCincoMaisCinco(['ANA PRIMEIRA'])
     await db.grade.create({
       data: { enrollmentId: turma.enrollmentIdPorNome['ANA PRIMEIRA'], activityId: turma.b1, value: 10 },
@@ -70,8 +72,8 @@ test.describe('Aviso de aluno em risco', () => {
     await page.goto(`/dashboard/classes/${turma.classId}`)
     await page.getByRole('button', { name: 'Diário de Notas', exact: true }).click()
 
-    // O bimestre vale 5 nesta turma, então o mínimo dele é 3.
-    await expect(page.getByText(/Mínimo por bimestre/i)).toContainText('3.0')
+    await expect(page.getByText(/Mínimo por bimestre/i)).toHaveCount(0)
+    await expect(page.getByText(/Mínimo/i)).toHaveCount(0)
 
     await ctx.close()
   })
@@ -90,12 +92,9 @@ test.describe('Aviso de aluno em risco', () => {
 
     const ctx = await novoContextoAutenticado(browser)
     const page = await ctx.newPage()
-    await page.goto(`/dashboard/classes/${turma.classId}`)
-    await page.getByRole('button', { name: 'Diário de Notas', exact: true }).click()
 
-    await expect(page.getByText(/Mínimo por bimestre/i)).toContainText('3.0')
-
-    // E quem tirou 10 na única prova corrigida está em dia, não em risco.
+    // Quem tirou 10 na única prova corrigida está em dia, não em risco: o
+    // mínimo vem do bimestre cheio, e a nota é projetada na mesma escala.
     await abrirRelatorio(page, turma.classId)
     await expect(page.getByRole('row').filter({ hasText: 'ANA PRIMEIRA' })).toContainText('Em dia')
 
@@ -121,22 +120,33 @@ test.describe('Aviso de aluno em risco', () => {
   }
 
   test('a soma "5 + 5" exige 3 e a média "(10 + 10) / 2" exige 6', async ({ browser }) => {
-    // "e isso deve ser em todas as turmas": o número sai da configuração de
-    // cada turma. As duas telas são comparadas na mesma execução para que uma
-    // regressão que iguale os dois valores apareça.
-    const soma = await turmaCincoMaisCinco(['ANA PRIMEIRA'])
-    const media = await turmaDezMaisDez(['ANA PRIMEIRA'])
+    // "e isso deve ser em todas as turmas": o mínimo sai da configuração de
+    // cada turma. Sem o aviso na tela, a regra é medida pelo que ela decide —
+    // e as duas turmas entram na mesma execução para que uma regressão que
+    // iguale os dois limites apareça.
+    //
+    // Em ambas o aluno precisa de 6 no bimestre; o que muda é quanto isso vale
+    // no placar final (3 na soma, 6 na média).
+    const soma = await turmaCincoMaisCinco(['ANA PRIMEIRA', 'BRUNO SEGUNDO'])
+    const media = await turmaDezMaisDez(['ANA PRIMEIRA', 'BRUNO SEGUNDO'])
+
+    await db.grade.createMany({
+      data: [
+        { enrollmentId: soma.enrollmentIdPorNome['ANA PRIMEIRA'], activityId: soma.b1, value: 6 },
+        { enrollmentId: soma.enrollmentIdPorNome['BRUNO SEGUNDO'], activityId: soma.b1, value: 5 },
+        { enrollmentId: media.enrollmentIdPorNome['ANA PRIMEIRA'], activityId: media.b1, value: 6 },
+        { enrollmentId: media.enrollmentIdPorNome['BRUNO SEGUNDO'], activityId: media.b1, value: 5 },
+      ],
+    })
 
     const ctx = await novoContextoAutenticado(browser)
     const page = await ctx.newPage()
 
-    await page.goto(`/dashboard/classes/${soma.classId}`)
-    await page.getByRole('button', { name: 'Diário de Notas', exact: true }).click()
-    await expect(page.getByText(/Mínimo por bimestre/i)).toContainText('3.0')
-
-    await page.goto(`/dashboard/classes/${media.classId}`)
-    await page.getByRole('button', { name: 'Diário de Notas', exact: true }).click()
-    await expect(page.getByText(/Mínimo por bimestre/i)).toContainText('6.0')
+    for (const turma of [soma, media]) {
+      await abrirRelatorio(page, turma.classId)
+      await expect(page.getByRole('row').filter({ hasText: 'ANA PRIMEIRA' })).toContainText('Em dia')
+      await expect(page.getByRole('row').filter({ hasText: 'BRUNO SEGUNDO' })).toContainText('Em risco')
+    }
 
     await ctx.close()
   })

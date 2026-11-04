@@ -169,26 +169,6 @@ export function maxAttainable(
   return method === 'AVERAGE' ? (b1 + b2) / 2 : b1 + b2
 }
 
-/** Quanto vale um bimestre na configuração da turma. */
-export function bimesterMax(activities: GradedActivity[], bimester: number): number {
-  return round2(
-    activities
-      .filter(a => a.bimester === bimester)
-      .reduce((soma, a) => soma + a.weight, 0) * MAX_GRADE / WEIGHT_TOTAL
-  )
-}
-
-/**
- * A nota mínima dentro de um bimestre: 60% do que ele vale.
- *
- * Num bimestre que vale 10 são 6; num que vale 5, são 3. É o número que o
- * professor lê no diário, e ele não muda conforme as atividades vão sendo
- * corrigidas — o bimestre vale o que vale.
- */
-export function bimesterThreshold(activities: GradedActivity[], bimester: number): number {
-  return round2(bimesterMax(activities, bimester) * PASSING_RATIO)
-}
-
 /**
  * O desempenho do aluno projetado para o bimestre inteiro.
  *
