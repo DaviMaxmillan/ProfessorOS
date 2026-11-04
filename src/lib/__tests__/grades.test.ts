@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   PASSING_GRADE,
-  bimesterThreshold,
   calculateGrades,
   finalGradeOrNull,
   gradeStanding,
@@ -319,8 +318,8 @@ describe('situação ao longo do semestre', () => {
         { id: 'q1', bimester: 2, weight: 10 },
       ]
       expect(passingThreshold(bimestreDe10, notas({ p1: 10 }), 'AVERAGE')).toBe(3)
-      // O 3 é no placar final (média dos dois bimestres); no bimestre em si
-      // o mínimo é 6 — ver `projectedFinal`.
+      // O 3 é no placar final (média dos dois bimestres); dentro do bimestre
+      // o aluno ainda precisa de 6 — ver `projectedFinal`.
       expect(maxAttainable(bimestreDe10, notas({ p1: 10 }), 'AVERAGE')).toBe(5)
     })
 
@@ -336,8 +335,14 @@ describe('situação ao longo do semestre', () => {
         { id: 'c', bimester: 2, weight: 5 }, { id: 'd', bimester: 2, weight: 5 },
       ]
 
-      expect(bimesterThreshold(soma, 1)).toBe(3)
-      expect(bimesterThreshold(media, 1)).toBe(6)
+      // Na soma, quem tira 6 nas duas provas do bimestre fica em dia; na
+      // média, 6 numa prova do bimestre também. O mesmo 60%, em escalas
+      // diferentes, porque o bimestre vale 5 num caso e 10 no outro.
+      expect(gradeStanding(soma, notas({ a: 6, b: 6 }), 'SUM')).toBe('EM_DIA')
+      expect(gradeStanding(soma, notas({ a: 5, b: 5 }), 'SUM')).toBe('EM_RISCO')
+      expect(gradeStanding(media, notas({ a: 6, b: 6 }), 'AVERAGE')).toBe('EM_DIA')
+      expect(gradeStanding(media, notas({ a: 5, b: 5 }), 'AVERAGE')).toBe('EM_RISCO')
+
       // Os dois fecham o semestre em 10, cada um pelo seu método.
       expect(maxAttainable(soma, notas({ a: 8, b: 8, c: 8, d: 8 }), 'SUM')).toBe(10)
       expect(maxAttainable(media, notas({ a: 8, b: 8, c: 8, d: 8 }), 'AVERAGE')).toBe(10)

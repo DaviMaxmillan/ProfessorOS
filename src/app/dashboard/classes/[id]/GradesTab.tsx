@@ -13,7 +13,7 @@ import {
   type GradeDraft,
 } from '@/lib/gradeDraft'
 import type { ClassDetail } from '@/lib/types'
-import { bimesterMax, bimesterThreshold, calculateGrades, gradeStanding, type GradeEntry, type GradeInput } from '@/lib/grades'
+import { calculateGrades, gradeStanding, type GradeEntry, type GradeInput } from '@/lib/grades'
 
 type GradesTabProps = {
   classData: ClassDetail
@@ -106,19 +106,6 @@ export default function GradesTab({ classData, draft, setDraft, pendentes }: Gra
       final: r.final.toFixed(1),
     }
   }
-
-  /**
-   * O mínimo de cada bimestre: 60% do que ele vale na configuração da turma.
-   *
-   * Num bimestre valendo 10 são 6; num valendo 5, são 3. Não muda conforme as
-   * atividades vão sendo corrigidas — o bimestre vale o que vale.
-   */
-  const minimoB1 = bimesterMax(classData.activities, 1) > 0
-    ? bimesterThreshold(classData.activities, 1)
-    : null
-  const minimoB2 = bimesterMax(classData.activities, 2) > 0
-    ? bimesterThreshold(classData.activities, 2)
-    : null
 
 
   const handleCreateActivity = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -275,18 +262,6 @@ export default function GradesTab({ classData, draft, setDraft, pendentes }: Gra
               <option value="SUM">Soma (Ex: Max 5 + Max 5 = 10)</option>
               <option value="AVERAGE">Média (Ex: (10 + 10) / 2 = 10)</option>
             </select>
-            {/* O mínimo sai do que cada bimestre vale nesta turma — senão a
-                cor da média final parece arbitrária. */}
-            {(minimoB1 !== null || minimoB2 !== null) && (
-              <span style={{ marginLeft: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                Mínimo por bimestre:{' '}
-                <strong style={{ color: 'var(--text-primary)' }}>
-                  {minimoB1 !== null && minimoB2 !== null && minimoB1 !== minimoB2
-                    ? `${minimoB1.toFixed(1)} no 1º e ${minimoB2.toFixed(1)} no 2º`
-                    : (minimoB1 ?? minimoB2)!.toFixed(1)}
-                </strong>
-              </span>
-            )}
           </div>
         </div>
         
