@@ -286,6 +286,13 @@ O GitHub Actions (`.github/workflows/ci.yml`) roda lint, typecheck e testes
 unitários em todo push e pull request, e os testes de ponta a ponta contra um
 PostgreSQL de serviço.
 
+## Pendências conhecidas
+
+`Docs/PENDENCIAS.md` lista o que foi encontrado e **não** corrigido, com o que
+já se sabe de cada caso: onde está, por que ficou de fora e o que foi medido.
+Vale ler antes de mexer em algo que pareça estranho — pode já estar lá, com o
+contexto pronto.
+
 ## Deploy (Railway)
 
 O `railway.json` já aplica o esquema e sobe a aplicação:
