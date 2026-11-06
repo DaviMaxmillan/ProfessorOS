@@ -270,6 +270,11 @@ Para rodar os e2e localmente:
 
 ```bash
 docker compose up -d
+
+# As duas variáveis precisam estar exportadas no terminal, não só no .env
+export DATABASE_URL="postgresql://postgres:password@localhost:5432/professoros_test?schema=public"
+export AUTH_SECRET="segredo-de-teste-com-mais-de-32-caracteres-aqui"
+
 npx prisma db push
 npm run build
 npm run test:e2e
@@ -277,7 +282,23 @@ npm run test:e2e
 
 Os testes apagam a tabela `Settings` entre casos para reproduzir o primeiro
 acesso — aponte `DATABASE_URL` para um banco de testes, nunca para o de uso
-real.
+real. Exportada no terminal, ela vale para o build, para o servidor e para os
+testes, e tem prioridade sobre a do `.env`.
+
+**A `AUTH_SECRET` também precisa estar exportada.** Os testes assinam o cookie
+de sessão por conta própria, no processo do Playwright, e o Playwright não lê o
+`.env`. Sem a variável, o teste assina com o segredo de desenvolvimento e o
+servidor com o de teste: o cookie é recusado, cada teste que entra com sessão
+pronta fica parado na tela de login até estourar os 60 segundos, e só os de
+login pela tela passam. O valor pode ser qualquer um com 32 caracteres ou
+mais — não use o do `.env`. O CI já define as duas em `.github/workflows/ci.yml`.
+
+No PowerShell, troque os `export` por:
+
+```powershell
+$env:DATABASE_URL = "postgresql://postgres:password@localhost:5432/professoros_test?schema=public"
+$env:AUTH_SECRET = "segredo-de-teste-com-mais-de-32-caracteres-aqui"
+```
 
 Se o ambiente já tiver um Chromium instalado, aponte `CHROMIUM_PATH` para o
 executável e o Playwright usa esse em vez de baixar outro.
